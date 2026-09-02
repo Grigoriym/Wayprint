@@ -70,3 +70,9 @@ fun placeLabels(requests: List<LabelRequest>, canvasBounds: Rect): List<PlacedLa
     }
     return placed
 }
+
+/** Repositions this label to ([x], [y]), recomputing its [PlacedLabel.boundingBox] in place. */
+fun PlacedLabel.movedTo(x: Double, y: Double): PlacedLabel {
+    val (width, height) = estimatedSize(text)
+    return copy(x = x, y = y, boundingBox = boundingBox(x, y, anchor, width, height))
+}

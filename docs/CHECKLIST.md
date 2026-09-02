@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M7.1
+**Current step:** M7.2
 
 ## How to use this
 
@@ -1083,7 +1083,7 @@ Shared context for all of M7 (re-derive nothing below from scratch):
 - Reference: `elbe-story-actual.html`'s hand-tuned label nudges (already the model for M3.2's
   compass candidates) has no drag/undo equivalent — this is genuinely new ground, not a port.
 
-- [ ] **M7.1** — `feature:wayprint:domain`: split `StoryPreset` into canvas-shape fields (width/
+- [x] **M7.1** — `feature:wayprint:domain`: split `StoryPreset` into canvas-shape fields (width/
   height/routeBox/margins) plus a `ColorScheme(backgroundColor, lineColor, textColor)`, add a
   `PRESET_COLOR_SCHEMES` list (5 entries, `core:gpx`'s `dayPalette(5)` for `lineColor`,
   `DEFAULT_STORY_PRESET`'s existing background/text held fixed across all 5), and a pure
@@ -1092,9 +1092,21 @@ Shared context for all of M7 (re-derive nothing below from scratch):
   bounding-box logic — expose what's currently private as needed). Unit tests for the reposition
   function and the preset list (5 entries, background/text identical across all, line colors match
   `dayPalette(5)`'s output).
-  **Verify:** `feature:wayprint:domain`'s tests pass (`./gradlew :feature:wayprint:domain:test`),
-  `detekt`/`ktlintCheck` clean. `WayprintLayoutTest`/other existing tests still pass unmodified —
-  confirms the `StoryPreset` split didn't change `buildWayprintLayout`'s behavior.
+  **Note:** `movedTo` didn't need any visibility change — it lives in `LabelPlacement.kt` itself,
+  so it calls the existing `private` `estimatedSize`/`boundingBox` helpers directly. The
+  `StoryPreset` split broke `feature:wayprint:ui`'s two callers (`WayprintCanvas`/
+  `drawWayprintStory`/`renderWayprintStoryBitmap` in `WayprintCanvas.kt`, and `WayprintScreen.kt`)
+  since they read colors off `preset`; both were updated to take a separate `ColorScheme` param,
+  with `WayprintScreen` passing `PRESET_COLOR_SCHEMES.first()` as today's still-hardcoded default
+  (M7.3 is what actually wires a picker) — required to keep the project building, not a new
+  feature.
+  **Verify:** `feature:wayprint:domain`'s tests pass (`./gradlew
+  :feature:wayprint:domain:testAndroidHostTest` — this is an Android-only KMP module, so plain
+  `:test` is ambiguous, see `docs/frictions.md`), `detekt`/`ktlintCheck` clean — confirmed.
+  `WayprintLayoutTest`/other existing tests still pass unmodified — confirmed, confirms the
+  `StoryPreset` split didn't change `buildWayprintLayout`'s behavior. `feature:wayprint:ui`'s
+  `compileAndroidMain`/`ktlintCheck`/`detekt` also confirmed clean (not this step's own module,
+  but needed since its two callers changed).
 
 - [ ] **M7.2** — `feature:wayprint:ui`: drag-to-reposition on `WayprintCanvas` via
   `Modifier.pointerInput`/`detectDragGestures`, inverse-transforming the drag's screen-space

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
+import com.grappim.wayprint.feature.wayprint.domain.ColorScheme
 import com.grappim.wayprint.feature.wayprint.domain.StoryPreset
 import com.grappim.wayprint.feature.wayprint.domain.TextAnchor
 import com.grappim.wayprint.feature.wayprint.domain.WayprintLayout
@@ -36,7 +37,12 @@ private const val LABEL_BASELINE_OFFSET_FACTOR = 0.35f
  * delegates the actual drawing to [drawWayprintStory].
  */
 @Composable
-fun WayprintCanvas(layout: WayprintLayout, preset: StoryPreset, modifier: Modifier = Modifier) {
+fun WayprintCanvas(
+    layout: WayprintLayout,
+    preset: StoryPreset,
+    colorScheme: ColorScheme,
+    modifier: Modifier = Modifier
+) {
     Canvas(modifier = modifier) {
         val fit = fitScale(
             canvasWidth = preset.canvasWidth,
@@ -49,23 +55,23 @@ fun WayprintCanvas(layout: WayprintLayout, preset: StoryPreset, modifier: Modifi
             translate(left = fit.offsetX.toFloat(), top = fit.offsetY.toFloat())
             scale(scaleX = fit.scale.toFloat(), scaleY = fit.scale.toFloat(), pivot = Offset.Zero)
         }) {
-            drawWayprintStory(layout, preset)
+            drawWayprintStory(layout, preset, colorScheme)
         }
     }
 }
 
 /**
- * Draws [preset]'s background full-bleed, [layout]'s route path as one stroked polyline,
+ * Draws [colorScheme]'s background full-bleed, [layout]'s route path as one stroked polyline,
  * Start/Finish circle markers, and [layout]'s labels with a stroke halo for legibility over the
  * line (the Elbe reference's `paint-order: stroke` technique), in [preset]'s own canvas-space
  * coordinates (`0..canvasWidth, 0..canvasHeight`) — no fit-scale/letterbox transform of its own,
  * so it's reusable by both [WayprintCanvas]'s on-screen letterboxed transform and
  * [renderWayprintStoryBitmap]'s headless full-size render.
  */
-fun DrawScope.drawWayprintStory(layout: WayprintLayout, preset: StoryPreset) {
-    val backgroundColor = parseHexColor(preset.backgroundColor)
-    val lineColor = parseHexColor(preset.lineColor)
-    val textColor = parseHexColor(preset.textColor)
+fun DrawScope.drawWayprintStory(layout: WayprintLayout, preset: StoryPreset, colorScheme: ColorScheme) {
+    val backgroundColor = parseHexColor(colorScheme.backgroundColor)
+    val lineColor = parseHexColor(colorScheme.lineColor)
+    val textColor = parseHexColor(colorScheme.textColor)
 
     drawRect(
         color = backgroundColor,
@@ -128,7 +134,7 @@ fun DrawScope.drawWayprintStory(layout: WayprintLayout, preset: StoryPreset) {
  * [com.grappim.wayprint.feature.wayprint.domain.DEFAULT_STORY_PRESET]) — no fit-scale/letterbox,
  * since that's only needed for on-screen display ([WayprintCanvas]). For export.
  */
-fun renderWayprintStoryBitmap(layout: WayprintLayout, preset: StoryPreset): Bitmap {
+fun renderWayprintStoryBitmap(layout: WayprintLayout, preset: StoryPreset, colorScheme: ColorScheme): Bitmap {
     val width = preset.canvasWidth.toInt()
     val height = preset.canvasHeight.toInt()
     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -138,7 +144,7 @@ fun renderWayprintStoryBitmap(layout: WayprintLayout, preset: StoryPreset): Bitm
         canvas = androidx.compose.ui.graphics.Canvas(android.graphics.Canvas(bitmap)),
         size = Size(preset.canvasWidth.toFloat(), preset.canvasHeight.toFloat())
     ) {
-        drawWayprintStory(layout, preset)
+        drawWayprintStory(layout, preset, colorScheme)
     }
     return bitmap
 }

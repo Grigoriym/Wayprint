@@ -58,4 +58,22 @@ class LabelPlacementTest {
         assertEquals(lastCandidate.dx, placed.x)
         assertEquals(lastCandidate.dy, placed.y)
     }
+
+    @Test
+    fun `movedTo repositions a label and recomputes its bounding box around the new position`() {
+        val request =
+            LabelRequest(text = "AAAA", anchorX = 100.0, anchorY = 100.0, candidates = compassCandidates(10.0))
+        val placed = placeLabel(request, placed = emptyList(), canvasBounds = canvasBounds)
+
+        val moved = placed.movedTo(x = 300.0, y = 400.0)
+
+        assertEquals(300.0, moved.x)
+        assertEquals(400.0, moved.y)
+        assertEquals(placed.anchor, moved.anchor)
+        assertEquals(placed.text, moved.text)
+        val expectedWidth = placed.boundingBox.maxX - placed.boundingBox.minX
+        val expectedHeight = placed.boundingBox.maxY - placed.boundingBox.minY
+        assertEquals(expectedWidth, moved.boundingBox.maxX - moved.boundingBox.minX)
+        assertEquals(expectedHeight, moved.boundingBox.maxY - moved.boundingBox.minY)
+    }
 }

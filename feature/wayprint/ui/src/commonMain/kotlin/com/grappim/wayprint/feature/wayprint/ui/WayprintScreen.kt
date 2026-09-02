@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.grappim.wayprint.feature.wayprint.domain.DEFAULT_STORY_PRESET
+import com.grappim.wayprint.feature.wayprint.domain.PRESET_COLOR_SCHEMES
 import org.koin.compose.viewmodel.koinViewModel
 
 private val SCREEN_PADDING = 16.dp
@@ -79,11 +80,16 @@ fun WayprintScreen(modifier: Modifier = Modifier, viewModel: WayprintViewModel =
                     WayprintCanvas(
                         layout = layout,
                         preset = DEFAULT_STORY_PRESET,
+                        colorScheme = PRESET_COLOR_SCHEMES.first(),
                         modifier = Modifier.fillMaxSize()
                     )
                     Button(
                         onClick = {
-                            val bitmap = renderWayprintStoryBitmap(layout, DEFAULT_STORY_PRESET)
+                            val bitmap = renderWayprintStoryBitmap(
+                                layout,
+                                DEFAULT_STORY_PRESET,
+                                PRESET_COLOR_SCHEMES.first()
+                            )
                             val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
                                 ContextCompat.checkSelfPermission(
                                     context,
