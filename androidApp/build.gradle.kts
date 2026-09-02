@@ -16,12 +16,14 @@ android {
 
 dependencies {
     implementation(project(":composeApp"))
+    implementation(project(":feature:wayprint:ui"))
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
     implementation(libs.koin.annotations)
 
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.ktx)
     implementation(libs.jetbrains.compose.ui.tooling.preview)
     debugImplementation(libs.jetbrains.compose.ui.tooling)
 }

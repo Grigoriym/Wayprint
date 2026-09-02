@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M5.2
+**Current step:** M5.3
 
 ## How to use this
 
@@ -764,14 +764,48 @@ Shared context for all of M5 (re-derive nothing below from scratch):
   pre-existing M0.3/M0.4 F-Droid-signing exclusions) passes project-wide, including the updated
   `KoinGraphTest`.
 
-- [ ] **M5.2** — `AndroidManifest.xml` intent-filter on `MainActivity` for `ACTION_SEND` (and
+- [x] **M5.2** — `AndroidManifest.xml` intent-filter on `MainActivity` for `ACTION_SEND` (and
   `ACTION_VIEW`, for opening a `.gpx` directly from a file manager) matching the mime types in
   shared context. `MainActivity` extracts the shared/viewed `content://` `Uri` (`ACTION_SEND`'s
   `EXTRA_STREAM`, or `ACTION_VIEW`'s data `Uri`) in `onCreate`/`onNewIntent` and forwards it into
   `WayprintViewModel`'s same `loadFromUri` entry point M5.1 built — no parsing logic duplicated.
-  **Verify:** on-device — from a file manager or another app, "Share"/"Open with" → Wayprint on the
-  M1 fixture GPX; screenshot confirms it renders identically to M5.1's picker path. `./gradlew
-  build` (same exclusions) passes project-wide.
+  **Note:** one combined `<intent-filter>` on `MainActivity` carries both `SEND`/`VIEW` actions,
+  `category.DEFAULT`, and the two `<data android:mimeType>` entries from shared context — rather
+  than two separate filters — since both actions share the identical category/data spec.
+  `MainActivity` also gained `android:launchMode="singleTop"`: without it, a share/open arriving
+  while the app is already in the foreground would spawn a second `MainActivity` instance instead
+  of routing through `onNewIntent`, which the step's own text requires handling.
+  **Note:** to get the *same* `WayprintViewModel` instance `WayprintScreen`'s `koinViewModel()`
+  resolves (so a `MainActivity`-forwarded `loadFromUri` call updates the state that screen is
+  already collecting), `MainActivity` obtains it via Koin's own `org.koin.androidx.viewmodel.ext
+  .android.viewModel()` Activity delegate (from `koin-android`, already a dependency) rather than
+  a second/duplicate resolution path — both go through `ViewModelProvider(activity, factory)` with
+  the same default class-based key, backed by the same `ComponentActivity`'s `ViewModelStore`,
+  confirmed on-device (see Verify) rather than assumed. `androidApp/build.gradle.kts` gained
+  `implementation(project(":feature:wayprint:ui"))` (for the `WayprintViewModel` class reference —
+  `composeApp`'s own dependency on it is `implementation`, not `api`, so not visible transitively)
+  and `implementation(libs.androidx.core.ktx)` (for `androidx.core.content.IntentCompat`, used to
+  read `Intent.EXTRA_STREAM` as a typed `Uri` without the API-33-deprecated raw
+  `getParcelableExtra` overload).
+  **Note:** three tooling frictions hit while proving this on-device (adb `content query --where`
+  quoting, `am start --grant-read-uri-permission` unable to forward access to a shell-inserted
+  MediaStore row, one mis-tapped action-bar icon caught before confirming) — logged in
+  `docs/frictions.md` rather than repeated here.
+  **Verify:** on-device — pushed the M1 fixture GPX to `/sdcard/Download/fixture.gpx` and drove the
+  on-device Files app (`com.google.android.documentsui`) for both real flows rather than
+  synthesizing intents directly (a shell-issued `am start --grant-read-uri-permission` against a
+  MediaStore-inserted row was rejected with "has no access to" — an adb-simulation limitation, not
+  an app bug; see `docs/frictions.md`): (1) selected `fixture.gpx` → **Share** → **Wayprint** in the
+  system share sheet (confirmed via `uiautomator dump` this is a real `ACTION_SEND` chooser, not a
+  synthesized intent) — screenshot confirms the story image renders identically to M5.1's picker
+  path (background, route line, hollow Start / filled Finish markers, "26.2 km" label); (2) same
+  file → overflow menu → **Open with** → **Wayprint** — `dumpsys activity activities` confirmed the
+  resulting `Intent { act=android.intent.action.VIEW dat=content://.../document/msf%3A37
+  typ=application/octet-stream cmp=com.grappim.wayprint.debug/com.grappim.wayprint.MainActivity }`
+  reached `MainActivity`, and the screenshot shows the identical rendered story image. `adb logcat`
+  showed no `FATAL EXCEPTION` across either flow. `./gradlew build` (same pre-existing M0.3/M0.4
+  F-Droid-signing exclusions) passes project-wide, including `detekt`/`ktlintCheck`/lint on the
+  changed `androidApp` module.
 
 - [ ] **M5.3** — Factor `WayprintCanvas`'s draw body into a reusable `fun
   DrawScope.drawWayprintStory(layout, preset)` (the existing on-screen `Canvas { }` calls it — same
