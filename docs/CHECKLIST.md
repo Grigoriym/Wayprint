@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M1.2
+**Current step:** M1.3
 
 ## How to use this
 
@@ -258,16 +258,24 @@ Shared context for all of M1 (re-derive nothing below from scratch):
   — confirmed matching (`(51.305712, 13.307704, 97.0)` first, `(51.161584, 13.47739, 105.0)`
   last). `./gradlew :core:gpx:build` (detekt, ktlintCheck, testAndroidHostTest, kover) passes.
 
-- [ ] **M1.2** — `haversineKm(a, b)` and `rdp(points, epsilon)`, ported from `haversine_km()` and
+- [x] **M1.2** — `haversineKm(a, b)` and `rdp(points, epsilon)`, ported from `haversine_km()` and
   `rdp()` exactly as written — including that the reference's `rdp()` measures perpendicular
   distance in raw lat/lon degrees, not via `haversine_km`, despite living next to it; port that
   as-is rather than "fixing" it, per CLAUDE.md's instruction to port the reference, not redesign
   it.
-  **Verify:** `haversineKm` unit-tested against a couple of the reference's own `TOWNS` coordinate
-  pairs (hand-computable). `rdp` unit-tested against (a) a small synthetic zigzag case with a
-  hand-verified expected output, and (b) the M1.1 fixture at the reference's default
-  `epsilon=0.0006`, asserting the simplified point count matches `rdp()` run on the same file at
-  the same epsilon. `detekt`/`ktlintCheck` pass.
+  **Note:** `rdp` operates on `List<TrackPoint>` directly (not a generic tuple type like the
+  Python reference) — `TrackPoint`'s `ele` field rides along unchanged on surviving points for
+  free via data-class equality/copying, and this is the shape M1.4's pipeline needs anyway.
+  **Note:** the synthetic zigzag test's expected output was hand-computed, then cross-checked by
+  running `rdp()` from the Python reference on the identical input — both agreed:
+  `[(0,0),(7,3),(10,0)]` for input `[(0,0),(5,1),(7,3),(10,0)]` at `epsilon=2.0`.
+  **Verify:** `haversineKm` unit-tested against three of the reference's own `TOWNS` coordinate
+  pairs (Dessau/Wittenberg, Riesa/Meissen, Torgau/Dresden), each against `haversine_km()`'s actual
+  output run on the same pair (`1e-9` tolerance). `rdp` unit-tested against (a) the hand-verified
+  synthetic zigzag above, and (b) the M1.1 fixture at the reference's default `epsilon=0.0006`,
+  asserting the simplified point count (51) matches `rdp()` run on the same file at the same
+  epsilon, plus first/last point identity. `./gradlew :core:gpx:build` (detekt, ktlintCheck,
+  testAndroidHostTest, kover) passes — confirmed.
 
 - [ ] **M1.3** — `fitProjection(points, boxW, boxH)` (mean-latitude equirectangular projection,
   uniform scale-to-fit, `toSvg(lat, lon)`) and `dayPalette(n, hues, s, l)`, ported from
