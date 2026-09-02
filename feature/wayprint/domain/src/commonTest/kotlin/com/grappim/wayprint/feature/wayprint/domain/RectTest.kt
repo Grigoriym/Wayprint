@@ -35,4 +35,19 @@ class RectTest {
 
         assertTrue(base.overlaps(other))
     }
+
+    @Test
+    fun `a point inside the rect is contained`() {
+        assertTrue(base.contains(x = 5.0, y = 5.0))
+    }
+
+    @Test
+    fun `a point outside the rect is not contained`() {
+        assertFalse(base.contains(x = 20.0, y = 20.0))
+    }
+
+    @Test
+    fun `a point on the edge is contained`() {
+        assertTrue(base.contains(x = 10.0, y = 10.0))
+    }
 }

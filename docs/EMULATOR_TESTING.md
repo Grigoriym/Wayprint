@@ -25,3 +25,17 @@ technique lives in the skill itself, not here — this file is only what's true 
   it also builds `assembleFdroidDebug`, whose signing needs the F-Droid debug keystore/secrets
   above. Build `:androidApp:assembleGplayDebug` instead until M6 sorts out F-Droid signing for
   local/dev builds.
+- `WayprintCanvas` is a raw `Canvas` composable (no semantics nodes), so a label's actual tap
+  target isn't visible to `uiautomator dump` or reliably eyeballable from a screenshot: it's
+  `PlacedLabel.boundingBox` (M3.2's placement-estimate size, `LabelPlacement.kt`'s 7×14
+  canvas-units-per-char constants) — much smaller than the label's visually rendered 28sp glyph
+  (see `docs/revisit.md`, M7.2). Screen coordinates also need the top app bar's height subtracted
+  before comparing against canvas-space math (`WayprintCanvas`'s `Canvas` doesn't start at
+  screen y=0). For any drag/tap-precision check on this screen, add a temporary
+  `android.util.Log.d` in the hit-test path printing the computed canvas-space point and each
+  label's `boundingBox`, rebuild+install, swipe once, read logcat for the real numbers, *then*
+  compute the correct screen coordinate from the box center — don't just eyeball the screenshot
+  and guess; on `Medium_Phone_API_36.1` at fit `scale≈1.0, offsetY≈93` (canvas-space) plus a
+  ~219px top-app-bar offset (screen-space), several guessed coordinates missed the box entirely
+  before the log-based approach hit on the first try. Remove the temporary log line before
+  finishing the change.

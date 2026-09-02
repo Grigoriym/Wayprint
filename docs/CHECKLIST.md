@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M7.2
+**Current step:** M7.3
 
 ## How to use this
 
@@ -1108,17 +1108,35 @@ Shared context for all of M7 (re-derive nothing below from scratch):
   `compileAndroidMain`/`ktlintCheck`/`detekt` also confirmed clean (not this step's own module,
   but needed since its two callers changed).
 
-- [ ] **M7.2** — `feature:wayprint:ui`: drag-to-reposition on `WayprintCanvas` via
+- [x] **M7.2** — `feature:wayprint:ui`: drag-to-reposition on `WayprintCanvas` via
   `Modifier.pointerInput`/`detectDragGestures`, inverse-transforming the drag's screen-space
   offset through `CanvasFit`'s scale/offset to canvas space, hit-testing against each
   `PlacedLabel.boundingBox` to pick which label is being dragged, then calling M7.1's reposition
   function on drag. `WayprintViewModel`/`WayprintUiState` gain an in-memory undo stack (push the
   pre-drag `WayprintLayout` before applying each drag's final position; an Undo button pops and
   restores it) — no persistence yet, this step is drag+undo only.
-  **Verify:** emulator check (per the `emulator-testing` skill) — load a GPX, drag a label to a new
-  position, confirm the render updates live and the label stays put on drag release; tap Undo,
-  confirm it snaps back to the pre-drag position. Unit test for the undo-stack push/pop logic in
-  `WayprintViewModel` (or wherever it ends up) with hand-written fakes, no mocking library.
+  **Note:** the undo-stack push/pop logic (and the drag-start/live-move logic) ended up as pure
+  extension functions on `WayprintUiState` (`WayprintUiState.kt`: `dragStarted`/`labelMoved`/
+  `dragEnded`/`undone`) rather than methods tested through `WayprintViewModel` directly — this
+  needed no `Context` fake at all (the module has no Robolectric/`Context`-faking test infra yet),
+  and `WayprintViewModel`'s new methods (`onLabelDragStart`/`onLabelDragged`/`onLabelDragEnd`/
+  `undo`) are thin one-line delegations to them. Added `Rect.contains(x, y)` to `feature:wayprint:
+  domain` for the hit-test itself (with unit tests), reusing the existing `Rect`/`PlacedLabel.
+  boundingBox` shape rather than a new UI-side geometry type. `WayprintCanvas`'s drag tracks
+  position as running deltas local to the gesture (not read back off the `layout` parameter) since
+  `pointerInput` is keyed on `preset` only — keying it on `layout` too would restart the gesture
+  (and cancel an in-progress drag) on every position update; `rememberUpdatedState(layout)` is used
+  only for the one-time hit-test at drag start.
+  **Verify:** `feature:wayprint:domain:testAndroidHostTest`/`feature:wayprint:ui:testAndroidHostTest`
+  pass, `detekt`/`ktlintCheck` clean on both modules — confirmed. Emulator check (per the
+  `emulator-testing` skill, `Medium_Phone_API_36.1`, `gplay` debug build, `feature:wayprint:
+  domain`'s `04 Riesa - Meissen.gpx` fixture pushed to `/sdcard/Download`) — loaded the GPX,
+  dragged the "26.2 km" distance label to a new position: the render updated live and the label
+  stayed at the new position on release, the Undo button appeared; tapping Undo snapped it back to
+  the pre-drag position and the button disappeared — confirmed. See `docs/revisit.md` for a
+  real-device UX gap found during this check (the label's drag hit-box is much smaller than its
+  rendered text) and `docs/EMULATOR_TESTING.md` for the coordinate-math gotcha that made it hard to
+  verify by eyeballing screenshots alone.
 
 - [ ] **M7.3** — `feature:wayprint:ui`: color-scheme picker — a row of swatches (one per
   `PRESET_COLOR_SCHEMES` entry) in `WayprintScreen`, selecting one re-renders `WayprintCanvas`

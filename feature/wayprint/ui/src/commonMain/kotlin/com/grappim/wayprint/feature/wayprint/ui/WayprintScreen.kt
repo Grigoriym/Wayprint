@@ -81,8 +81,19 @@ fun WayprintScreen(modifier: Modifier = Modifier, viewModel: WayprintViewModel =
                         layout = layout,
                         preset = DEFAULT_STORY_PRESET,
                         colorScheme = PRESET_COLOR_SCHEMES.first(),
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        onDragStart = viewModel::onLabelDragStart,
+                        onDrag = viewModel::onLabelDragged,
+                        onDragEnd = viewModel::onLabelDragEnd
                     )
+                    if (uiState.canUndo) {
+                        Button(
+                            onClick = viewModel::undo,
+                            modifier = Modifier.align(Alignment.TopStart).padding(SCREEN_PADDING)
+                        ) {
+                            Text("Undo")
+                        }
+                    }
                     Button(
                         onClick = {
                             val bitmap = renderWayprintStoryBitmap(

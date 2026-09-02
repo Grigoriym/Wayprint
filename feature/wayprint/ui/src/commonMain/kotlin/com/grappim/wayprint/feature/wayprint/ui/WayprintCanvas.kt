@@ -3,7 +3,10 @@ package com.grappim.wayprint.feature.wayprint.ui
 import android.graphics.Bitmap
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -17,6 +20,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import com.grappim.wayprint.feature.wayprint.domain.ColorScheme
@@ -34,16 +38,64 @@ private const val LABEL_BASELINE_OFFSET_FACTOR = 0.35f
 
 /**
  * Letterboxes [layout]/[preset] into the composable's actual on-screen size via [fitScale], then
- * delegates the actual drawing to [drawWayprintStory].
+ * delegates the actual drawing to [drawWayprintStory]. A drag gesture is inverse-transformed
+ * through the same [fitScale] to hit-test [WayprintLayout.labels] in canvas space: [onDragStart]
+ * fires once a label is hit, [onDrag] fires on every move with the label's new canvas-space
+ * position, [onDragEnd] once the gesture finishes. Drag position is tracked as running deltas
+ * inside the gesture rather than read back off [layout], since a caller applying [onDrag] live
+ * would otherwise restart the gesture on every recomposition.
  */
 @Composable
 fun WayprintCanvas(
     layout: WayprintLayout,
     preset: StoryPreset,
     colorScheme: ColorScheme,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onDragStart: () -> Unit = {},
+    onDrag: (index: Int, x: Double, y: Double) -> Unit = { _, _, _ -> },
+    onDragEnd: () -> Unit = {}
 ) {
-    Canvas(modifier = modifier) {
+    val currentLayout by rememberUpdatedState(layout)
+
+    Canvas(
+        modifier = modifier.pointerInput(preset) {
+            var draggedIndex = -1
+            var x = 0.0
+            var y = 0.0
+
+            fun currentFit() =
+                fitScale(preset.canvasWidth, preset.canvasHeight, size.width.toDouble(), size.height.toDouble())
+
+            detectDragGestures(
+                onDragStart = { start ->
+                    val fit = currentFit()
+                    val canvasX = (start.x - fit.offsetX) / fit.scale
+                    val canvasY = (start.y - fit.offsetY) / fit.scale
+                    draggedIndex = currentLayout.labels.indexOfLast { it.boundingBox.contains(canvasX, canvasY) }
+                    if (draggedIndex >= 0) {
+                        val label = currentLayout.labels[draggedIndex]
+                        x = label.x
+                        y = label.y
+                        onDragStart()
+                    }
+                },
+                onDrag = { change, dragAmount ->
+                    if (draggedIndex >= 0) {
+                        change.consume()
+                        val fit = currentFit()
+                        x += dragAmount.x / fit.scale
+                        y += dragAmount.y / fit.scale
+                        onDrag(draggedIndex, x, y)
+                    }
+                },
+                onDragEnd = {
+                    if (draggedIndex >= 0) onDragEnd()
+                    draggedIndex = -1
+                },
+                onDragCancel = { draggedIndex = -1 }
+            )
+        }
+    ) {
         val fit = fitScale(
             canvasWidth = preset.canvasWidth,
             canvasHeight = preset.canvasHeight,

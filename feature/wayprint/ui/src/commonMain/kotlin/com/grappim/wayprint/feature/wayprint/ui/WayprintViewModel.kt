@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.annotation.KoinViewModel
@@ -41,6 +42,22 @@ class WayprintViewModel(private val context: Context) : ViewModel() {
                 }
             }
         }
+    }
+
+    fun onLabelDragStart() {
+        _uiState.update { it.dragStarted() }
+    }
+
+    fun onLabelDragged(index: Int, x: Double, y: Double) {
+        _uiState.update { it.labelMoved(index, x, y) }
+    }
+
+    fun onLabelDragEnd() {
+        _uiState.update { it.dragEnded() }
+    }
+
+    fun undo() {
+        _uiState.update { it.undone() }
     }
 
     fun exportAndShare(bitmap: Bitmap) {
