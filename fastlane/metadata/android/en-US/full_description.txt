@@ -1,0 +1,10 @@
+Wayprint turns a GPX track into a styled, shareable route-art image — a single, fixed-size story-style picture of your route, ready to save or share.
+
+Key Features:
+
+• Import: open a GPX file via the file picker, or share it directly from Strava, Komoot, OsmAnd, and similar apps
+• Route art: your track is rendered as clean vector line art, with distance and start/finish labels placed automatically to avoid overlapping
+• Export: save the finished image, or share it straight to any app via the system share sheet
+• Fully offline: no network access, no account, no tracking
+
+Wayprint is a single-purpose utility, not a full route editor — point it at a GPX file and get a shareable image back.

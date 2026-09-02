@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M6.2
+**Current step:** M6.3
 
 ## How to use this
 
@@ -980,7 +980,7 @@ Shared context for all of M6 (re-derive nothing below from scratch):
   `detekt`/`ktlintCheck` clean on `:build-logic:convention` — confirmed. `grep -ri wallos
   build-logic/` finds nothing — confirmed (empty, exit code 1).
 
-- [ ] **M6.2** — `fastlane/` skeleton: `Fastfile` (a `test` lane running `./gradlew allTests`,
+- [x] **M6.2** — `fastlane/` skeleton: `Fastfile` (a `test` lane running `./gradlew allTests`,
   ported as-is from wallosmobile's — no Wayprint-specific lane needed yet), `Gemfile` (`gem
   "fastlane"`), and `fastlane/metadata/android/en-US/` — `title.txt` ("Wayprint"),
   `short_description.txt` and `full_description.txt` (Wayprint's own text, drawn from root
@@ -988,9 +988,29 @@ Shared context for all of M6 (re-derive nothing below from scratch):
   ("Initial release."). No `images/` (screenshots/feature graphic) yet — root
   `CLAUDE.md`/IMPLEMENTATION_PLAN.md §7 already defers those to whenever there's a real build to
   screenshot.
-  **Verify:** `bundle exec fastlane android test` (or `fastlane android test` if fastlane is
-  installed directly) runs the `test` lane and it invokes `./gradlew allTests` successfully.
-  `short_description.txt` is ≤80 characters (F-Droid/Play's own limit) — confirmed by inspection.
+  **Note:** `Fastfile`/`Gemfile` are byte-for-byte ports of wallosmobile's (only the `desc`/lane
+  name/gradle task carry over — nothing in either file is app-specific to begin with).
+  `full_description.txt` covers Import/Route art/Export/Fully offline, drawn from root
+  `CLAUDE.md`'s Concept and MVP scope sections (GPX-only input via picker/share-intent from
+  Strava/Komoot/OsmAnd, automatic label placement, `MediaStore`/share-sheet export, no
+  network/account) — not wallosmobile's server-client wording, which doesn't apply here.
+  **Note:** this environment has no Ruby/fastlane installed (`ruby`/`gem`/`fastlane`/`bundle` all
+  absent; `ruby-full` is available via `apt` but installing it needs `sudo`, a system-wide change).
+  Docker is available but there's no ready-made image with both fastlane and this project's
+  JDK/Android SDK toolchain (the `test` lane's `gradle(task: "allTests")` shells out to the
+  project's own `./gradlew`). Asked the user how to proceed (install ruby-full via apt / user
+  installs it themselves / inspect-only); user chose inspect-only — so this step's own Verify
+  line's live-execution half (`fastlane android test` actually invoking `./gradlew allTests`) is
+  **not** confirmed by an actual run, only by structural inspection. Flagged here rather than
+  silently claimed as passing.
+  **Verify:** structural inspection only (see note above) — `fastlane/Fastfile`/`Gemfile`/
+  `metadata/android/en-US/{title,short_description,full_description}.txt` and
+  `changelogs/1.txt` match wallosmobile's file layout exactly (`find fastlane -type f`), and
+  `Fastfile`'s `test` lane calls `gradle(task: "allTests")`, the same task `./gradlew allTests`
+  invokes directly. `short_description.txt` is 57 characters (`wc -c`), under the 80-character
+  F-Droid/Play limit — confirmed. Live `fastlane android test` execution not run — deferred to
+  whoever installs Ruby locally, or to M6.3's CI run (which installs its own toolchain in the
+  GitHub Actions runner and isn't blocked by this local gap).
 
 - [ ] **M6.3** — `.github/workflows/ci.yml`: checkout, JDK 21 (`temurin`), Gradle setup
   (`gradle/actions/setup-gradle`, `validate-wrappers: true`), Android SDK setup
