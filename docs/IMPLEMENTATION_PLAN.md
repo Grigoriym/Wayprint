@@ -166,5 +166,17 @@ scope jump), multiple layout templates (poster, square, story), iOS/Desktop targ
   platform to actually build against.
 - **Style presets format** — hardcoded Kotlin objects for M4's single preset is fine; revisit if/
   when "small number of fixed presets" (CLAUDE.md) needs to grow past what's comfortable as code.
+- **M4 label/marker halo text — Android-only** — resolved at M4 step-break-down (2026-09-02).
+  `feature:wayprint:ui` ports the Elbe reference's `paint-order: stroke` label legibility halo via
+  `drawContext.canvas.nativeCanvas` + two `android.graphics.Paint`s (stroke, then fill) — see
+  `docs/CHECKLIST.md`'s M4 shared context. Unlike M1's `javax.xml.parsers`/`BigDecimal` calls
+  (JVM-standard, "Android-only" only because no other KMP target is configured yet),
+  `android.graphics.Paint` is genuinely Android-only. Revisit when/if an iOS/Desktop target is
+  added — a Compose Multiplatform-portable text-halo approach would replace this.
+- **M4 demo route data** — resolved at M4 step-break-down (2026-09-02). GPX import (M5) doesn't
+  exist yet, so M4.3's end-to-end `composeApp` wiring feeds `buildWayprintLayout` a short
+  hand-written GPX string embedded in code (not the M1 fixture, not a real import) — provisional,
+  same spirit as M0.2's placeholder text/M0.4's `GreetingProvider`. M5 replaces the call site with
+  the real file-picker/share-intent input.
 - **agentic-grappim README edit** (adding Wayprint to its project list) touches a shared repo
   used by other apps — confirm with the user at the M0 step that does this, not by default.

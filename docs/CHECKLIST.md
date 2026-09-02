@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M4 step-break-down
+**Current step:** M4.1
 
 ## How to use this
 
@@ -535,7 +535,73 @@ Shared context for all of M3 (re-derive nothing below from scratch):
 ## M4 — `feature:wayprint:ui`
 
 Canvas renderer for one hardcoded story-size (1080×1920) preset, driven by M3's domain models.
-Step-break-down at the start of M4.
+Broken down below into the background/route-line drawing, the marker/label drawing (the
+stroke-halo legibility technique from the Elbe reference), and a capstone step wiring the
+finished renderer into `composeApp`, replacing the M0.2/M0.4 placeholder screen end-to-end.
+
+Shared context for all of M4 (re-derive nothing below from scratch):
+- Visual reference: `/home/gregory/claude/wanderwege/elbe route/elbe-story-actual.html`'s
+  `.route-line`/`.town-label`/`.marker-tag` CSS and its `<circle>` start/finish markers — the
+  `paint-order: stroke` halo (`stroke: var(--paper); stroke-width: 8-9`) behind every label is
+  the legibility technique M4.2 ports; there's no route-line-vs-label collision check in
+  `feature:wayprint:domain` (M3's own shared context) *because* this halo makes one unnecessary.
+- `feature:wayprint:domain`'s M3 output is everything the renderer needs: `WayprintLayout`
+  (`path: List<Pair<Double, Double>>`, `totalDistanceKm`, 3 `labels: List<PlacedLabel>`) plus
+  `StoryPreset` (canvas size, margins, `backgroundColor`/`lineColor`/`textColor` as hex strings).
+  No new domain state — `feature:wayprint:ui` only needs a dependency on
+  `feature:wayprint:domain` added to its `build.gradle.kts`.
+- `WayprintLayout.path` and every `PlacedLabel`'s `x`/`y` are already in `StoryPreset`'s
+  canvas-space units (`0..canvasWidth, 0..canvasHeight`, y grows downward) — the composable maps
+  that fixed space onto its actual on-screen pixel size with one uniform scale factor (matching
+  how the Elbe reference's SVG `viewBox` scales to its container), not a second layout pass.
+- Start/Finish circle markers are drawn from `WayprintLayout.path.first()`/`.last()` (the actual
+  route endpoints), not from the "Start"/"Finish" `PlacedLabel`s — those two labels' `x`/`y` are
+  their *offset* dodge positions (M3.2's compass candidates), not marker centers.
+- Halo text has no Compose Multiplatform-portable primitive (`DrawScope` has no `paint-order`/
+  dual-paint text draw) — port it via `drawContext.canvas.nativeCanvas` + two
+  `android.graphics.Paint`s (one `STROKE` style in `backgroundColor` drawn first, one `FILL`
+  style in `textColor` drawn second). Unlike M1's `javax.xml.parsers`/`BigDecimal` calls
+  (JVM-standard, only "Android-only" because no other KMP target is configured yet),
+  `android.graphics.Paint` is genuinely Android-only — flag it as a real iOS/Desktop porting gap
+  in `IMPLEMENTATION_PLAN.md` §9 when M4.2 lands, not a "happens to work for now" one.
+- No GPX import UI exists yet (M5's scope). M4.3's end-to-end wiring still needs *some* route to
+  render — use a short, hand-written GPX string (a handful of `<trkpt>`s, not the full M1
+  fixture) embedded directly in `composeApp` and fed to `buildWayprintLayout` via
+  `ByteArrayInputStream`. This is provisional, same spirit as M0.2's placeholder text / M0.4's
+  `GreetingProvider` — M5 replaces the call site with the real file-picker/share-intent input,
+  and `GreetingProvider` itself (now orphaned) should be deleted in M4.3 per CLAUDE.md's "remove
+  what your change orphaned."
+
+- [ ] **M4.1** — A pure `fitScale`-type function (given `StoryPreset`'s canvas width/height and
+  the composable's actual available width/height, return the uniform scale factor + centering
+  offset that letterboxes the fixed canvas into that space, matching the Elbe reference's
+  `viewBox` behavior) plus a `WayprintCanvas` composable in `feature:wayprint:ui` that uses it to
+  draw `StoryPreset.backgroundColor` full-bleed and `WayprintLayout.path` as one stroked polyline
+  in `StoryPreset.lineColor`. No markers/labels yet (M4.2). Add `feature:wayprint:ui`'s dependency
+  on `feature:wayprint:domain`.
+  **Verify:** unit tests for the scale/offset function cover exact-fit, letterboxed-wider, and
+  letterboxed-taller cases. `./gradlew :feature:wayprint:ui:build` (detekt, ktlintCheck,
+  testAndroidHostTest, kover) passes. (No screenshot yet — `WayprintCanvas` isn't wired into any
+  screen until M4.3; that step is where visual output first gets confirmed on-device, same as
+  M2's theme/typography pieces.)
+
+- [ ] **M4.2** — Extend `WayprintCanvas` (or add to it): Start/Finish circle markers at
+  `WayprintLayout.path.first()`/`.last()`, and the 3 `WayprintLayout.labels` drawn with the
+  halo-stroke technique (see shared context) in `StoryPreset.textColor`.
+  **Verify:** `./gradlew :feature:wayprint:ui:build` (detekt, ktlintCheck, kover) passes. No new
+  unit-testable logic beyond M4.1's (Canvas drawing itself isn't unit-testable without an
+  instrumented/Robolectric harness this project doesn't have) — visual confirmation deferred to
+  M4.3.
+
+- [ ] **M4.3** — Wire `WayprintCanvas` into `composeApp`: `WayprintAppContent.kt`'s placeholder
+  `Text(greetingProvider.greeting())` becomes `WayprintCanvas(layout =
+  buildWayprintLayout(demoGpxInput), preset = DEFAULT_STORY_PRESET)` (or equivalent), reading the
+  demo GPX string described in shared context. Delete `GreetingProvider` and its `KoinGraphTest`
+  coverage, now orphaned. Add `composeApp`'s dependency on `feature:wayprint:ui`.
+  **Verify:** `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing exclusions) passes
+  project-wide. Installed `:androidApp:assembleGplayDebug` on the emulator: screenshot confirms
+  the full story image — background, route line, Start/Finish markers, and all 3 legible
+  (haloed) labels — replacing the old "Wayprint" placeholder text.
 
 ## M5 — import/export end-to-end
 
