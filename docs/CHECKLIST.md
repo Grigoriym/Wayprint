@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M3.2
+**Current step:** M3.3
 
 ## How to use this
 
@@ -443,7 +443,7 @@ Shared context for all of M3 (re-derive nothing below from scratch):
   **Verify:** `./gradlew :feature:wayprint:domain:build` (detekt, ktlintCheck, testAndroidHostTest,
   kover) passes — confirmed.
 
-- [ ] **M3.2** — The greedy placement algorithm itself: given a label's anchor point, its text
+- [x] **M3.2** — The greedy placement algorithm itself: given a label's anchor point, its text
   (for estimated bbox size — a fixed char-width-times-length approximation is fine, no real font
   metrics available in a pure-Kotlin module), and an ordered list of candidate offset/anchor pairs
   (compass-style: right, left, above, below), plus the set of already-placed labels' boxes and the
@@ -453,8 +453,26 @@ Shared context for all of M3 (re-derive nothing below from scratch):
   (b) two labels whose preferred candidates collide — the lower-priority one is verified to fall
   back to a later candidate; (c) a forced-unresolvable case (every candidate collides) falls back
   to the last candidate rather than throwing.
+  **Note:** added `LabelPlacement.kt`: `LabelCandidate` (`dx`/`dy` offset + `TextAnchor`),
+  `LabelRequest` (text/anchor point/ordered candidates), `compassCandidates(offset)` (the
+  right/left/above/below list in that fixed order — the offset function IMPLEMENTATION_PLAN.md §9
+  describes, not new scope), `placeLabel` (single-label algorithm), and `placeLabels` (the fold over
+  a priority-ordered list). Estimated label size is `text.length * 7.0` wide × `14.0` tall, hardcoded
+  module-private constants — no `StoryPreset` exists yet for these to come from (that's M3.3).
+  **Note:** "clears" per the step's own text means both no overlap with any already-placed box *and*
+  fully inside `canvasBounds` — a candidate box exceeding the canvas edge is treated the same as one
+  overlapping another label.
+  **Note:** the empty-`candidates`-list case (impossible via `compassCandidates`, but not provably so
+  to the compiler from `placeLabel`'s signature) falls through to `error(...)` rather than a defensive
+  check — Kotlin needs some expression after the loop for exhaustiveness; this is that expression, not
+  extra validation logic.
   **Verify:** `./gradlew :feature:wayprint:domain:build` (detekt, ktlintCheck, testAndroidHostTest,
-  kover) passes.
+  kover) passes — confirmed. `LabelPlacementTest` covers all three specified cases: (a) two
+  far-apart labels each land on their first (right) candidate; (b) a second label anchored 5 units
+  from the first has its right candidate collide, verified to fall back to its left candidate; (c) a
+  1×1 canvas forces every candidate out of bounds, verified to fall back to the last (below)
+  candidate without throwing. `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing
+  exclusions) passes project-wide.
 
 - [ ] **M3.3** — `StoryPreset` (the single hardcoded MVP style preset: 1080×1920 canvas, the
   route-art box size/margins within it, line/background/text colors as hex strings — own palette,
