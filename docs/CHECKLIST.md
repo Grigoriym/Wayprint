@@ -1021,10 +1021,25 @@ Shared context for all of M6 (re-derive nothing below from scratch):
   actual `wayprint_fdroid_debug.jks`'s base64 contents and its three `WAYPRINT_*_FDROID_DEBUG`
   values as GitHub Actions repo secrets (`gh secret set`) so the restore step has something to
   restore.
+  **Note:** `.github/workflows/ci.yml` written and committed (checkout, JDK 21, Gradle/Android SDK
+  setup, `wayprint_fdroid_debug.jks` restore from `WAYPRINT_FILE_FDROID_DEBUG`, `assembleFdroidDebug`
+  + `assembleGplayDebug`, `allTests`, `detekt`/`ktlintCheck`, `koverXmlReport` uploaded as a build
+  artifact — no `google-services.json` restore/Codecov upload/per-flavor lint step, none of which
+  apply to Wayprint per this milestone's shared context).
+  **Note:** triggers on push/PR to `master`, not `main` as this step's own text says — `gh repo view`
+  and `git branch -a` confirm the actual (and only) branch/default is `master`, matching M0.1's own
+  note that it deliberately set the default branch to `master` to match wallosmobile's convention;
+  this step's "main" wording is stale relative to that decision.
+  Left **unticked**: per the M6.1 decision,
+  the user generates every keystore themselves, and `wayprint_fdroid_debug.jks` doesn't exist yet —
+  so the four GitHub Actions secrets this workflow restores from can't be set, and the Verify line's
+  green-run/`gh secret list` checks can't be run. Logged in `docs/revisit.md` for when the user has
+  generated the keystore and says so.
   **Verify:** push a branch (or open a PR) that trips the workflow; `gh run watch` (or the Actions
   tab) confirms a green run — checkout through Kover report all succeed, matching what
   `./gradlew build`'s local exclusions already prove passes offline. `gh secret list` confirms the
   three `WAYPRINT_*_FDROID_DEBUG` secrets plus the base64 keystore secret are present.
+  **Deferred:** blocked on the user generating `wayprint_fdroid_debug.jks` — see `docs/revisit.md`.
 
 ## Backlog (growth roadmap, not milestones yet)
 

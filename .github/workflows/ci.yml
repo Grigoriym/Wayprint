@@ -1,0 +1,74 @@
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      WAYPRINT_STORE_PASS_FDROID_DEBUG: ${{ secrets.WAYPRINT_STORE_PASS_FDROID_DEBUG }}
+      WAYPRINT_ALIAS_FDROID_DEBUG: ${{ secrets.WAYPRINT_ALIAS_FDROID_DEBUG }}
+      WAYPRINT_KEY_PASS_FDROID_DEBUG: ${{ secrets.WAYPRINT_KEY_PASS_FDROID_DEBUG }}
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          validate-wrappers: true
+
+      - name: Set up the Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Restore wayprint_fdroid_debug.jks
+        run: echo "$ENCODED_FDROID_DEBUG" | base64 -d > ./wayprint_fdroid_debug.jks
+        env:
+          ENCODED_FDROID_DEBUG: ${{ secrets.WAYPRINT_FILE_FDROID_DEBUG }}
+
+      - name: Assemble the fdroid debug APK
+        run: ./gradlew :androidApp:assembleFdroidDebug
+
+      - name: Assemble the gplay debug APK
+        run: ./gradlew :androidApp:assembleGplayDebug
+
+      - name: Run the unit tests
+        run: ./gradlew allTests
+
+      - name: Run detekt and ktlint
+        run: ./gradlew detekt ktlintCheck
+
+      - name: Generate Kover XML report
+        run: ./gradlew koverXmlReport
+
+      - name: Upload Kover XML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kover-report
+          path: '**/build/reports/kover/report.xml'
