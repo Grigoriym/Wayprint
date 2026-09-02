@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M4.1
+**Current step:** M4.2
 
 ## How to use this
 
@@ -572,18 +572,31 @@ Shared context for all of M4 (re-derive nothing below from scratch):
   and `GreetingProvider` itself (now orphaned) should be deleted in M4.3 per CLAUDE.md's "remove
   what your change orphaned."
 
-- [ ] **M4.1** — A pure `fitScale`-type function (given `StoryPreset`'s canvas width/height and
+- [x] **M4.1** — A pure `fitScale`-type function (given `StoryPreset`'s canvas width/height and
   the composable's actual available width/height, return the uniform scale factor + centering
   offset that letterboxes the fixed canvas into that space, matching the Elbe reference's
   `viewBox` behavior) plus a `WayprintCanvas` composable in `feature:wayprint:ui` that uses it to
   draw `StoryPreset.backgroundColor` full-bleed and `WayprintLayout.path` as one stroked polyline
   in `StoryPreset.lineColor`. No markers/labels yet (M4.2). Add `feature:wayprint:ui`'s dependency
   on `feature:wayprint:domain`.
+  **Note:** added `CanvasFit.kt` (`fitScale(canvasWidth, canvasHeight, availableWidth,
+  availableHeight): CanvasFit`, a `scale`/`offsetX`/`offsetY` data class) — file name is
+  `CanvasFit.kt`, not `FitScale.kt`, since detekt's `MatchingDeclarationName` requires the file to
+  match its single top-level declaration.
+  **Note:** `WayprintCanvas(layout: WayprintLayout, preset: StoryPreset, modifier: Modifier =
+  Modifier)` parses `StoryPreset`'s hex color strings with a small local `parseHexColor` (own
+  6-digit-hex-to-`Color` parser, pure Kotlin — not `android.graphics.Color.parseColor`, to avoid
+  pulling in a genuinely-Android-only API a step earlier than M4.2 flags one as necessary) and
+  draws the route polyline with the Elbe reference's own `.route-line` stroke style (`width = 6f`,
+  round cap/join) ported directly rather than picked arbitrarily.
+  **Note:** `Placeholder.kt` deleted now that `feature:wayprint:ui` has real code, matching M1.1's
+  precedent.
   **Verify:** unit tests for the scale/offset function cover exact-fit, letterboxed-wider, and
-  letterboxed-taller cases. `./gradlew :feature:wayprint:ui:build` (detekt, ktlintCheck,
-  testAndroidHostTest, kover) passes. (No screenshot yet — `WayprintCanvas` isn't wired into any
-  screen until M4.3; that step is where visual output first gets confirmed on-device, same as
-  M2's theme/typography pieces.)
+  letterboxed-taller cases — confirmed passing. `./gradlew :feature:wayprint:ui:build` (detekt,
+  ktlintCheck, testAndroidHostTest, kover) passes; `./gradlew build` (same pre-existing M0.3/M0.4
+  F-Droid-signing exclusions) passes project-wide. (No screenshot yet — `WayprintCanvas` isn't
+  wired into any screen until M4.3; that step is where visual output first gets confirmed
+  on-device, same as M2's theme/typography pieces.)
 
 - [ ] **M4.2** — Extend `WayprintCanvas` (or add to it): Start/Finish circle markers at
   `WayprintLayout.path.first()`/`.last()`, and the 3 `WayprintLayout.labels` drawn with the
