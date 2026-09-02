@@ -1,5 +1,6 @@
 package com.grappim.wayprint.composeapp.di
 
+import android.content.Context
 import org.koin.test.verify.verify
 import kotlin.test.Test
 
@@ -15,6 +16,11 @@ class KoinGraphTest {
 
     @Test
     fun `every definition in the app graph can be resolved`() {
-        AppModule().module().verify()
+        AppModule().module().verify(extraTypes = EXTERNALLY_SUPPLIED)
+    }
+
+    private companion object {
+        /** `Context` comes from `androidContext()` in `WayprintApp`, not from any definition here. */
+        val EXTERNALLY_SUPPLIED = listOf(Context::class)
     }
 }

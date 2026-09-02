@@ -8,6 +8,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":feature:wayprint:domain"))
+            implementation(libs.androidx.activity.compose)
         }
     }
 }

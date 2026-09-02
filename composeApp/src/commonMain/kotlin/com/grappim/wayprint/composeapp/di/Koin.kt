@@ -1,5 +1,6 @@
 package com.grappim.wayprint.composeapp.di
 
+import com.grappim.wayprint.feature.wayprint.ui.WayprintUiModule
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Configuration
 import org.koin.core.annotation.KoinApplication
@@ -17,7 +18,7 @@ expect class PlatformComponentModule
  * CLAUDE.md's growth roadmap) needs an explicit `includes = [...]` here — TaigaMobileNova's
  * `KoinGraphTest` doc explains why the scan alone doesn't reach across an iOS Native compilation.
  */
-@Module
+@Module(includes = [WayprintUiModule::class])
 @Configuration
 @ComponentScan("com.grappim.wayprint.composeapp")
 class AppModule

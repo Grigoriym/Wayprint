@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M5.1
+**Current step:** M5.2
 
 ## How to use this
 
@@ -722,7 +722,7 @@ Shared context for all of M5 (re-derive nothing below from scratch):
   itself stays at 24, matching `../wallosmobile`/`../TaigaMobileNova`'s template value — not raised
   just to dodge the legacy permission path.
 
-- [ ] **M5.1** — `WayprintUiState` (`Empty` / `Loading` / `Success(WayprintLayout)` /
+- [x] **M5.1** — `WayprintUiState` (`Empty` / `Loading` / `Success(WayprintLayout)` /
   `Error(message)`) and a `WayprintViewModel` (Koin-injected, in `feature:wayprint:ui`) exposing a
   `loadFromUri(Uri)`-style entry point that opens the `Uri` via `ContentResolver.openInputStream`
   and runs `buildWayprintLayout` off the main thread. A `WayprintScreen` composable: `Empty` shows
@@ -730,11 +730,39 @@ Shared context for all of M5 (re-derive nothing below from scratch):
   spinner; `Success` shows the existing `WayprintCanvas`; `Error` shows the message plus a retry
   button. `composeApp`'s `WayprintAppContent` becomes `WayprintTheme { WayprintScreen() }`; delete
   `DemoRoute.kt`/`DEMO_GPX` (now orphaned, see shared context).
-  **Verify:** on-device — push the M1 fixture GPX onto the emulator, pick it via the file picker;
-  screenshot confirms the same rendered story image M4.3 confirmed, now from a real picked file
-  instead of the hardcoded demo. Pick a non-GPX file; confirm (screenshot/logcat) the `Error` state
-  renders instead of a crash. `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing
-  exclusions) passes project-wide.
+  **Note:** `WayprintUiState` is a `sealed interface` with exclusive `Empty`/`Loading`/
+  `Success`/`Error` variants — a real difference from `../wallosmobile`'s single-data-class,
+  boolean/nullable-flags `UiState` pattern (e.g. `CurrenciesUiState`), not an accidental drift.
+  Those screens can be in *combined* states (stale `items` shown while `isLoading`, an `error`
+  banner over existing content); `WayprintScreen`'s four states are mutually exclusive with no
+  stale-content-while-loading behavior, and this step's own text already names the four variants,
+  so a sealed hierarchy (illegal combinations unrepresentable, not just unused) is the right shape
+  here.
+  **Note:** `WayprintViewModel` takes `android.content.Context` straight in its constructor
+  (Koin's `androidContext()` registers it) rather than a narrower seam, same precedent as M4/M5's
+  shared context (Android-only platform types go directly in `commonMain`, not behind an
+  expect/actual, since only one KMP target exists). `loadFromUri` catches any `Exception` from
+  `buildWayprintLayout` (malformed XML, a non-numeric `lat`/`lon`, an empty track) and maps it to
+  `WayprintUiState.Error` — there's no narrower exception type to catch instead, since a bad GPX
+  file can fail in several unrelated ways through the parse/RDP/projection pipeline.
+  **Note:** a Koin definition in one Gradle module is invisible to another module's
+  `@ComponentScan`, confirmed against `../wallosmobile`'s per-feature-module pattern — added
+  `WayprintUiModule` (`@Module @ComponentScan("com.grappim.wayprint.feature.wayprint.ui")`) in
+  `feature:wayprint:ui` and listed it in `composeApp`'s `AppModule(includes = [...])`. `KoinGraphTest`
+  needed `verify(extraTypes = listOf(Context::class))` — `Context` comes from `androidContext()` in
+  `WayprintApp`, not from any scanned definition, same as wallosmobile's own `KoinGraphTest`.
+  **Note:** `androidx.activity:activity-compose` (for `rememberLauncherForActivityResult`/
+  `ActivityResultContracts`, already in the version catalog since M0.1's seed but previously only
+  depended on by `androidApp`) added to `feature:wayprint:ui`'s `commonMain.dependencies` — needed
+  for the file-picker launcher in `WayprintScreen`.
+  **Verify:** on-device — pushed the M1 fixture GPX (`fixture.gpx`) and a non-GPX text file
+  (`notgpx.txt`) onto the emulator; picking `fixture.gpx` via the file picker renders the same
+  story image M4.3 confirmed (background, route line, Start/Finish markers, "26.2 km" label), now
+  from a real picked file instead of the hardcoded demo — screenshot confirmed. Picking the non-GPX
+  file renders the `Error` state (message plus a Retry button) instead of a crash — screenshot
+  confirmed, `adb logcat` shows no `FATAL EXCEPTION` for the whole session. `./gradlew build` (same
+  pre-existing M0.3/M0.4 F-Droid-signing exclusions) passes project-wide, including the updated
+  `KoinGraphTest`.
 
 - [ ] **M5.2** — `AndroidManifest.xml` intent-filter on `MainActivity` for `ACTION_SEND` (and
   `ACTION_VIEW`, for opening a `.gpx` directly from a file manager) matching the mime types in
