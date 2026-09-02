@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M3.3
+**Current step:** M3.4
 
 ## How to use this
 
@@ -474,15 +474,32 @@ Shared context for all of M3 (re-derive nothing below from scratch):
   candidate without throwing. `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing
   exclusions) passes project-wide.
 
-- [ ] **M3.3** — `StoryPreset` (the single hardcoded MVP style preset: 1080×1920 canvas, the
+- [x] **M3.3** — `StoryPreset` (the single hardcoded MVP style preset: 1080×1920 canvas, the
   route-art box size/margins within it, line/background/text colors as hex strings — own palette,
   not the Elbe reference's paper/ochre one, consistent with `uikit`'s M2 forest-green theme) and a
   route/distance model wrapping `core:gpx`'s `buildRouteArt` output: total distance (see shared
   context above) plus the projected path ready to draw. No label placement yet — that's M3.4.
-  **Verify:** unit test asserts total distance on the M1 fixture GPX matches the reference script's
-  own distance figure (sum of `haversine_km` over consecutive raw points) run on the same file.
+  **Note:** `feature:wayprint:domain` had no dependency on `core:gpx` before this step —
+  `build.gradle.kts` gained `commonMain.dependencies { implementation(project(":core:gpx")) }`.
+  **Note:** `buildWayprintRoute` doesn't call `buildRouteArt` as a black box: `buildRouteArt`
+  consumes its `InputStream` once internally, but total distance needs the *raw* (pre-`rdp`)
+  points from that same parse too — so it replicates `buildRouteArt`'s parse → `rdp` → project
+  call sequence directly via `core:gpx`'s own exposed `parseTrack`/`rdp`/`fitProjection`
+  functions, producing an identical path for the same input while also summing `haversineKm` over
+  the raw points for distance.
+  **Note:** `StoryPreset`'s route-art box (860×980) and margins (110/470, centering it in the
+  1080×1920 canvas) reuse `core:gpx`'s own `DEFAULT_BOX_WIDTH`/`DEFAULT_BOX_HEIGHT` values rather
+  than picking new ones. Colors: `#F7F4EC` background, `#2E6B4F` line (uikit's `Green40` seed
+  hue), `#1B2E22` text — own palette, chosen for this step, not ported from the Elbe reference.
+  **Note:** the M1 fixture GPX (`04 Riesa - Meissen.gpx`) was copied into this module's own
+  `src/commonTest/resources/fixtures/` — Kotlin test resources aren't shared across modules, so
+  each module that needs it keeps its own copy, per the convention M1.1 established.
+  **Verify:** `WayprintRouteTest` runs `buildWayprintRoute` on the fixture and asserts
+  `totalDistanceKm` (26.15576342355938) matches `gpx_route_art.py`'s `parse_track()` +
+  `haversine_km()` summed over consecutive raw points, run on the same file — confirmed.
   `./gradlew :feature:wayprint:domain:build` (detekt, ktlintCheck, testAndroidHostTest, kover)
-  passes.
+  passes; `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing exclusions) passes
+  project-wide.
 
 - [ ] **M3.4** — Wire M3.1–M3.3 into one pipeline (e.g. `buildWayprintLayout(gpxInput,
   preset): WayprintLayout`): parse + project the route (via `core:gpx`), compute the Start/Finish
