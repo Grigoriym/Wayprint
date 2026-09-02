@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M2.1
+**Current step:** M2.2
 
 ## How to use this
 
@@ -350,18 +350,38 @@ Shared context for all of M2 (re-derive nothing below from scratch):
   load-bearing this early (nothing downstream depends on a specific color yet) and can be
   revisited freely later.
 
-- [ ] **M2.1** — `Colors.kt` (a light and a dark Material3 `ColorScheme`, own static seed
+- [x] **M2.1** — `Colors.kt` (a light and a dark Material3 `ColorScheme`, own static seed
   palette) and `Theme.kt` (`@Composable fun WayprintTheme(darkTheme: Boolean =
   isSystemInDarkTheme(), content: @Composable () -> Unit)`, wrapping `content` in `MaterialTheme`
   + a theme-owned `Surface`, per shared context above — no composition locals). Wire it into
   `composeApp`: `WayprintAppContent.kt`'s bare `MaterialTheme { Surface { ... } }` becomes
   `WayprintTheme { ... }` (the `Surface` moves into the theme, so the call site drops its own).
+  **Note:** ported wallosmobile's full `Colors.kt`/`Theme.kt`/`ContrastTest.kt` shape (10
+  light + 10 dark text-on-background pairs: primary/secondary/tertiary/error × base+container,
+  plus surface/surfaceVariant) rather than Taiga's sparser partial-`ColorScheme` one, since M2.1's
+  own Verify line requires "every ... pair used for text-on-background" to pass `ContrastTest` —
+  the fuller pair set is what that line is asking to be tested. Left out wallosmobile's
+  outline/inverse/surface-container-ladder colors and its `DARK_BACKGROUND_COLOR_FOR_PREVIEW`
+  constant: none has a caller yet (no `Card`/`Dialog`/`Snackbar`/`@Preview` exists), so adding them
+  now would be dead code ahead of the step that actually needs them, per CLAUDE.md's
+  "no speculative structure" agreement.
+  **Note:** seed hue is a forest green (`Green40`/`Green80` etc. in `Colors.kt`) — waymarking/trail
+  themed, matching "Wayprint" per M2's own naming rationale in root `CLAUDE.md`. Not brand-critical
+  per M2's shared context; picked and verified only for WCAG contrast, not for any deeper meaning.
+  **Note:** `composeApp/build.gradle.kts` gained `commonMain.dependencies { implementation(project(
+  ":uikit")) }` — the module had no dependency on `uikit` before this step.
+  **Note:** ktlint's `compose:modifier-missing-check` flagged `WayprintTheme` (a `@Composable` that
+  emits content but takes no `Modifier` param, same shape as wallosmobile's own `Theme.kt`) —
+  wallosmobile's `.editorconfig` already carries a `[**/Theme.kt]` section disabling that rule for
+  exactly this reason; ported the same section into Wayprint's `.editorconfig` rather than adding a
+  `Modifier` parameter the theme function has no use for.
   **Verify:** a `ContrastTest` (ported pattern from wallosmobile's, WCAG AA 4.5:1 normal-text
   contrast) asserts every light/dark `ColorScheme` pair used for text-on-background in `Colors.kt`
-  meets the bar. `./gradlew :uikit:build` (detekt, ktlintCheck, kover) and `./gradlew build` (same
-  pre-existing M0.3/M0.4 F-Droid-signing exclusions) pass. Installed on the emulator: screenshot
-  confirms the centered "Wayprint" text screen still renders correctly, now through
-  `WayprintTheme`.
+  meets the bar — confirmed passing (all 20 pairs, ratios 5.48–16.78, well above 4.5). `./gradlew
+  :uikit:build` (detekt, ktlintCheck, kover) and `./gradlew build` (same pre-existing M0.3/M0.4
+  F-Droid-signing exclusions) pass. Installed `:androidApp:assembleGplayDebug` on
+  `Medium_Phone_API_36.1`: screenshot confirms the centered "Wayprint" text screen still renders
+  correctly, now through `WayprintTheme` (light `SurfaceLight` background, `OnSurfaceLight` text).
 
 - [ ] **M2.2** — `Typography.kt` (a `Typography` instance for `MaterialTheme`'s standard Material3
   type scale, default platform font — no custom font asset) and `Dimens.kt` (start with exactly

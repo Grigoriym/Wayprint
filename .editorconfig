@@ -12,6 +12,9 @@ ktlint_compose_multiple-emitters-check=disabled
 max_line_length = 120
 ktlint_standard_kdoc = disabled
 
+[**/Theme.kt]
+ktlint_compose_modifier-missing-check=disabled
+
 [**/generated/**]
 generated_code = true
 ij_formatter_enabled = false

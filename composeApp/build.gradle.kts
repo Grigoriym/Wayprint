@@ -6,6 +6,9 @@ plugins {
 
 kotlin {
     sourceSets {
+        commonMain.dependencies {
+            implementation(project(":uikit"))
+        }
         commonTest.dependencies {
             implementation(libs.koin.test)
         }
