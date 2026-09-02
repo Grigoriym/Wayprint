@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M6.1
+**Current step:** M6.2
 
 ## How to use this
 
@@ -951,7 +951,7 @@ Shared context for all of M6 (re-derive nothing below from scratch):
 - This repo already has a GitHub remote (`github.com/Grigoriym/Wayprint`) and an authenticated
   `gh` CLI — M6.3's CI workflow can be verified with a real Actions run, not just YAML inspection.
 
-- [ ] **M6.1** — Rename the ported signing config to Wayprint's own identity:
+- [x] **M6.1** — Rename the ported signing config to Wayprint's own identity:
   `AndroidApplicationConventionPlugin.kt`'s `configureAppSigningConfigs()` — keystore filenames
   `wallos_mobile_${flavor.title}.jks` → `wayprint_${flavor.title}.jks`,
   `wallos_mobile_fdroid_debug.jks` → `wayprint_fdroid_debug.jks`, and every `WALLOS_*` env var →
@@ -964,11 +964,23 @@ Shared context for all of M6 (re-derive nothing below from scratch):
   **not** generate `wayprint_gplay.jks`/`wayprint_fdroid.jks` (real release keystores) — see shared
   context; `assembleGplayRelease`/`assembleFdroidRelease`/their `bundle*` equivalents keep their
   existing exclusion from `./gradlew build`.
-  **Verify:** `:androidApp:assembleFdroidDebug` succeeds locally with the new keystore/env vars (a
-  build that has been exclusion-listed since M0.3). `./gradlew build` (same M0.3-established
-  exclusions, now scoped to just the release variants per shared context) passes project-wide,
-  `detekt`/`ktlintCheck` clean on the changed convention-plugin file. `grep -ri wallos
-  build-logic/` finds nothing left in the signing config.
+  **Note:** keystore generated at the repo root (`wayprint_fdroid_debug.jks`, matching
+  `configureAppSigningConfigs()`'s `File(rootDir, ...)` lookup and wallosmobile's own precedent)
+  via `keytool -genkeypair -keyalg RSA -keysize 2048 -validity 10000 -alias
+  wayprint-fdroid-debug`, `-dname "CN=Wayprint F-Droid Debug, OU=Wayprint, O=Wayprint, ..."` —
+  values not specified by this step's own text, picked here since `keytool` needs concrete ones.
+  Store/key password is one `openssl rand -hex 16` value used for both (matching wallosmobile's
+  own shape of a single password serving both roles for its debug keystore). Already covered by
+  the existing repo-root `*.jks` gitignore entry (M0.1) — no new ignore rule needed. Password
+  is local-machine-only (not committed, not printed in this note); the user holds it for
+  M6.3's `gh secret set`.
+  **Verify:** `:androidApp:assembleFdroidDebug` succeeds locally with the new keystore/env vars —
+  confirmed (`BUILD SUCCESSFUL`, a build that has been exclusion-listed since M0.3). `./gradlew
+  build -x :androidApp:assembleFdroidRelease -x :androidApp:assembleGplayRelease -x
+  :androidApp:bundleFdroidRelease -x :androidApp:bundleGplayRelease` (M0.3's exclusions, now
+  narrowed to just the release variants per shared context) passes project-wide — confirmed.
+  `detekt`/`ktlintCheck` clean on `:build-logic:convention` — confirmed. `grep -ri wallos
+  build-logic/` finds nothing — confirmed (empty, exit code 1).
 
 - [ ] **M6.2** — `fastlane/` skeleton: `Fastfile` (a `test` lane running `./gradlew allTests`,
   ported as-is from wallosmobile's — no Wayprint-specific lane needed yet), `Gemfile` (`gem

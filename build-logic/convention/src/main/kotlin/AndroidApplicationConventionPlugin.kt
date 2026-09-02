@@ -91,10 +91,10 @@ private fun ApplicationExtension.configureAppSigningConfigs(rootDir: File) {
         AppFlavors.entries.forEach { flavor ->
             create("${flavor.title}Release") {
                 val envSuffix = flavor.title.uppercase()
-                storeFile = File(rootDir, "wallos_mobile_${flavor.title}.jks")
-                storePassword = System.getenv("WALLOS_STORE_PASS_$envSuffix")
-                keyAlias = System.getenv("WALLOS_ALIAS_$envSuffix")
-                keyPassword = System.getenv("WALLOS_KEY_PASS_$envSuffix")
+                storeFile = File(rootDir, "wayprint_${flavor.title}.jks")
+                storePassword = System.getenv("WAYPRINT_STORE_PASS_$envSuffix")
+                keyAlias = System.getenv("WAYPRINT_ALIAS_$envSuffix")
+                keyPassword = System.getenv("WAYPRINT_KEY_PASS_$envSuffix")
                 enableV2Signing = true
                 enableV3Signing = true
             }
@@ -106,10 +106,10 @@ private fun ApplicationExtension.configureAppSigningConfigs(rootDir: File) {
         // because a flavor-level signingConfig would apply to both its build types and this
         // one must not touch `fdroidRelease`.
         create("fdroidDebug") {
-            storeFile = File(rootDir, "wallos_mobile_fdroid_debug.jks")
-            storePassword = System.getenv("WALLOS_STORE_PASS_FDROID_DEBUG")
-            keyAlias = System.getenv("WALLOS_ALIAS_FDROID_DEBUG")
-            keyPassword = System.getenv("WALLOS_KEY_PASS_FDROID_DEBUG")
+            storeFile = File(rootDir, "wayprint_fdroid_debug.jks")
+            storePassword = System.getenv("WAYPRINT_STORE_PASS_FDROID_DEBUG")
+            keyAlias = System.getenv("WAYPRINT_ALIAS_FDROID_DEBUG")
+            keyPassword = System.getenv("WAYPRINT_KEY_PASS_FDROID_DEBUG")
             enableV2Signing = true
             enableV3Signing = true
         }
