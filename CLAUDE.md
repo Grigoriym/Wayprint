@@ -201,6 +201,24 @@ smooth run.
 The same friction three times is a fix, not a fourth line — a permission entry, a line in
 this file, or a skill. `/finalize` is where that promotion happens.
 
+## Close-out
+
+At the end of each checklist step, without being asked:
+
+1. Run the **`/finalize` skill** if the step taught something non-obvious — the plan didn't
+   know it going in, and this is where it gets written down instead of dying with the context.
+2. Commit the step's changes (one commit per checklist step, per the working agreements above).
+3. **Push to `master` directly.** There is no dev branch and no PR workflow yet — the user has
+   said explicitly, repeatedly, that push-to-master-every-task is the standing instruction until
+   they say otherwise. Do not hold a commit back "until told to push"; that is not a real
+   distinction here — commit and push are the same action. **Only** once the user says a dev
+   branch now exists does this switch to feature branches + PRs, and even then only for the
+   scope they name.
+
+Session-scoped work still gets confirmed before pushing (see "Executing actions with care" in
+the system prompt) — a force-push, a rewrite of already-pushed history, anything destructive.
+A normal fast-forward push of a normal commit is not that; it's the default, not an ask.
+
 ## Settled decisions
 
 Weighed and declined — don't re-propose these.
