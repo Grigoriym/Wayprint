@@ -69,7 +69,8 @@ internal val DarkColorScheme = darkColorScheme(
 @Composable
 fun WayprintTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+        colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
+        typography = WayprintTypography
     ) {
         Surface(modifier = Modifier.fillMaxSize(), content = content)
     }

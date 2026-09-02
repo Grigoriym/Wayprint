@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M2.2
+**Current step:** M3
 
 ## How to use this
 
@@ -383,16 +383,23 @@ Shared context for all of M2 (re-derive nothing below from scratch):
   `Medium_Phone_API_36.1`: screenshot confirms the centered "Wayprint" text screen still renders
   correctly, now through `WayprintTheme` (light `SurfaceLight` background, `OnSurfaceLight` text).
 
-- [ ] **M2.2** — `Typography.kt` (a `Typography` instance for `MaterialTheme`'s standard Material3
+- [x] **M2.2** — `Typography.kt` (a `Typography` instance for `MaterialTheme`'s standard Material3
   type scale, default platform font — no custom font asset) and `Dimens.kt` (start with exactly
   one named spacing constant — more get added by whichever later step first needs them, not
   pre-emptively here, per the "no speculative structure" reasoning in shared context above). Wire
   both into `composeApp`: `WayprintTheme` passes the new `Typography` into its `MaterialTheme`
   call, and the placeholder screen's `Box` uses the new spacing constant as padding (so `Dimens.kt`
   has an actual caller, not a dangling unused value).
+  **Note:** followed wallosmobile's `Type.kt` pattern exactly (`val WayprintTypography =
+  Typography()`, untouched Material3 default) rather than Taiga's partial custom type scale —
+  this step's own text says "standard Material3 type scale, default platform font," which is
+  wallosmobile's shape, not a customized one.
+  **Note:** the one `Dimens.kt` constant is `screenPadding = 16.dp`, applied to the placeholder
+  `Box`'s `Modifier.padding`.
   **Verify:** `./gradlew :uikit:build` (detekt, ktlintCheck, kover) and `./gradlew build` (same
-  exclusions) pass. Installed on the emulator: screenshot confirms the "Wayprint" text still
-  renders, now padded and through the new typography.
+  pre-existing M0.3/M0.4 F-Droid-signing exclusions) pass — confirmed. Installed
+  `:androidApp:assembleGplayDebug` on `Medium_Phone_API_36.1`: screenshot confirms the "Wayprint"
+  text still renders, now padded and through `WayprintTypography`.
 
 ## M3 — `feature:wayprint:domain`
 
