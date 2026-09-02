@@ -180,3 +180,24 @@ scope jump), multiple layout templates (poster, square, story), iOS/Desktop targ
   the real file-picker/share-intent input.
 - **agentic-grappim README edit** (adding Wayprint to its project list) touches a shared repo
   used by other apps — confirm with the user at the M0 step that does this, not by default.
+- **M5 import/export decisions** — resolved at M5 step-break-down (2026-09-02). Four decisions,
+  see `docs/CHECKLIST.md`'s M5 shared context for the full reasoning:
+  - GPX picker uses `ActivityResultContracts.GetContent("*/*")`, not SAF `OpenDocument` with a mime
+    filter — GPX has no reliable, universally-tagged MIME type across Strava/Komoot/OsmAnd, so a
+    mime filter would as often hide the real file as show it. A bad pick is validated by attempting
+    the parse (same `Error` state a malformed GPX hits), not by inspecting mime/extension first.
+  - Share-intent (`MainActivity`'s M5.2 intent-filter) matches concrete mime types
+    (`application/gpx+xml`, `application/octet-stream`) rather than `*/*` or `pathPattern` matching
+    — revisit if a real sharing app doesn't surface Wayprint in its share sheet.
+  - `MediaStore` save (M5.4) uses `MediaStore.Images.Media.insertImage(...)`, not manual
+    `ContentValues`/`RELATIVE_PATH` — works unmodified across `minSdk=24..compileSdk=37` at the
+    cost of no custom "Wayprint" subfolder (default Pictures collection instead); pre-29 needs a
+    runtime `WRITE_EXTERNAL_STORAGE` (`maxSdkVersion="28"`) request the 29+ scoped-storage path
+    doesn't. `minSdk` stays 24 (matches `../wallosmobile`/`../TaigaMobileNova`) rather than being
+    raised to 29 just to drop that legacy path.
+  - M5 is where `WayprintViewModel` (MVVM, per root `CLAUDE.md`'s planned architecture) gets its
+    first real use — `jetbrains-lifecycle-viewmodel-compose`/`koin-compose-viewmodel` have been in
+    the version catalog unused since M0.1's seed. It lives in `feature:wayprint:ui` (module table
+    in §4 already assigns that module "import flow, export/share," and it already applies
+    `wayprint.kmp.di` per §5) — `composeApp` stays a thin DI-root/shell hosting the finished screen.
+    No repository/use-case layer: §4's lean-MVP module layout already ruled that structure out.

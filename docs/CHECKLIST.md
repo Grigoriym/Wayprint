@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M5 step-break-down
+**Current step:** M5.1
 
 ## How to use this
 
@@ -671,7 +671,102 @@ Shared context for all of M4 (re-derive nothing below from scratch):
 ## M5 — import/export end-to-end
 
 File picker / share-intent GPX import; `Bitmap` render → `MediaStore`/share sheet export. Wires
-M1–M4 into one working flow. Step-break-down at the start of M5.
+M1–M4 into one working flow. Broken down below into the state model + file-picker import, then
+share-intent import reusing that same path, then headless `Bitmap` rendering, then the
+`MediaStore` save + share-sheet step that completes the flow.
+
+Shared context for all of M5 (re-derive nothing below from scratch):
+- Reference: root `CLAUDE.md`'s MVP scope — Input is "GPX file only (file picker / share-intent
+  from Strava, Komoot, OsmAnd, etc.)"; Output is "exported to a `Bitmap` and saved/shared via
+  `MediaStore` / share sheet."
+- Module ownership: IMPLEMENTATION_PLAN.md §4's module table already assigns `feature:wayprint:ui`
+  "Compose Canvas renderer, **import flow, export/share**" and it already applies `wayprint.kmp.di`
+  (§5) — so M5's screen/ViewModel/import/export logic all land there, not in `composeApp`.
+  `composeApp` goes back to being a thin DI-root/shell that just hosts the finished screen, the
+  same role M4's shared context described for it.
+- This is the first place the app has real state that can fail (a picked/shared file might not be
+  a valid GPX). Root `CLAUDE.md`'s "Planned architecture" already commits to MVVM + Koin DI — this
+  milestone is where that pattern gets its first real use: one `WayprintViewModel` using
+  `jetbrains-lifecycle-viewmodel-compose`/`koin-compose-viewmodel` (both already in the version
+  catalog since M0.1's seed, unused until now). No repository/use-case layers — IMPLEMENTATION_PLAN
+  .md §4's lean-MVP/no-speculative-structure call already ruled those out for this app.
+  `feature:wayprint:domain`'s `buildWayprintLayout` is called directly from the ViewModel.
+- M4.3's precedent (direct `android.graphics.Paint` calls in `feature:wayprint:ui`'s commonMain,
+  flagged as an Android-only porting gap in IMPLEMENTATION_PLAN.md §9 rather than built behind an
+  expect/actual, since only one KMP target exists today) extends to M5: `ContentResolver`/
+  `MediaStore`/share-`Intent` calls also go directly in commonMain here, flagged the same way.
+- M4.3's demo route (`composeApp`'s `DemoRoute.kt`/`DEMO_GPX`) is the provisional scaffolding that
+  step's own note already called out for M5 to replace — delete it once M5.1's real import path is
+  wired in, per the "remove what your change orphaned" ground rule.
+- Picker mechanism: `ActivityResultContracts.GetContent("*/*")`, not SAF `OpenDocument` with a mime
+  filter — GPX has no reliable, universally-tagged MIME type across the picker apps CLAUDE.md names
+  (Strava/Komoot/OsmAnd), so filtering by mime would as often hide the real file as show it.
+  Validation is by attempting the parse, not by mime/extension inspection beforehand — a bad pick
+  becomes the same `Error` state a malformed GPX would.
+- Share-intent mime types: register `MainActivity`'s intent-filter for the concrete mime types
+  GPX-sharing apps are actually observed to use (`application/gpx+xml`, `application/octet-stream`)
+  rather than `*/*` (too broad — would make Wayprint claim every share target on the device) or
+  `pathPattern`-based matching (doesn't reliably match opaque `content://` URIs). Revisit if a real
+  app's share sheet doesn't surface Wayprint.
+- `Bitmap`-backed drawing isn't unit-testable in this project (M4.2's precedent: host tests run with
+  `isReturnDefaultValues = true` and no Robolectric, so `android.graphics` calls return stubbed
+  defaults, not real pixels) — M5.3/M5.4's Verify lines are on-device only, same as M4.2.
+- `MediaStore` save target: `MediaStore.Images.Media.insertImage(...)` (the simple deprecated
+  helper, not manual `ContentValues`/`RELATIVE_PATH`) — works unmodified across this project's full
+  `minSdk=24..compileSdk=37` range (`gradle/libs.versions.toml`), at the cost of no custom
+  "Wayprint" subfolder (images land in the default Pictures collection) and needing
+  `WRITE_EXTERNAL_STORAGE` (`maxSdkVersion="28"`) requested only below API 29 (scoped storage from
+  29 on needs no permission for an app's own inserted media). A version-branching
+  `ContentValues`+`RELATIVE_PATH` approach would allow a custom subfolder but is real extra
+  complexity for a folder name CLAUDE.md doesn't actually require — simplicity first. `minSdk`
+  itself stays at 24, matching `../wallosmobile`/`../TaigaMobileNova`'s template value — not raised
+  just to dodge the legacy permission path.
+
+- [ ] **M5.1** — `WayprintUiState` (`Empty` / `Loading` / `Success(WayprintLayout)` /
+  `Error(message)`) and a `WayprintViewModel` (Koin-injected, in `feature:wayprint:ui`) exposing a
+  `loadFromUri(Uri)`-style entry point that opens the `Uri` via `ContentResolver.openInputStream`
+  and runs `buildWayprintLayout` off the main thread. A `WayprintScreen` composable: `Empty` shows
+  an "Import GPX" button wired to `ActivityResultContracts.GetContent("*/*")`; `Loading` shows a
+  spinner; `Success` shows the existing `WayprintCanvas`; `Error` shows the message plus a retry
+  button. `composeApp`'s `WayprintAppContent` becomes `WayprintTheme { WayprintScreen() }`; delete
+  `DemoRoute.kt`/`DEMO_GPX` (now orphaned, see shared context).
+  **Verify:** on-device — push the M1 fixture GPX onto the emulator, pick it via the file picker;
+  screenshot confirms the same rendered story image M4.3 confirmed, now from a real picked file
+  instead of the hardcoded demo. Pick a non-GPX file; confirm (screenshot/logcat) the `Error` state
+  renders instead of a crash. `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing
+  exclusions) passes project-wide.
+
+- [ ] **M5.2** — `AndroidManifest.xml` intent-filter on `MainActivity` for `ACTION_SEND` (and
+  `ACTION_VIEW`, for opening a `.gpx` directly from a file manager) matching the mime types in
+  shared context. `MainActivity` extracts the shared/viewed `content://` `Uri` (`ACTION_SEND`'s
+  `EXTRA_STREAM`, or `ACTION_VIEW`'s data `Uri`) in `onCreate`/`onNewIntent` and forwards it into
+  `WayprintViewModel`'s same `loadFromUri` entry point M5.1 built — no parsing logic duplicated.
+  **Verify:** on-device — from a file manager or another app, "Share"/"Open with" → Wayprint on the
+  M1 fixture GPX; screenshot confirms it renders identically to M5.1's picker path. `./gradlew
+  build` (same exclusions) passes project-wide.
+
+- [ ] **M5.3** — Factor `WayprintCanvas`'s draw body into a reusable `fun
+  DrawScope.drawWayprintStory(layout, preset)` (the existing on-screen `Canvas { }` calls it — same
+  visual output, no behavior change). Add a headless `fun renderWayprintStoryBitmap(layout,
+  preset): Bitmap`, using `CanvasDrawScope` + `Bitmap.createBitmap` at the preset's exact canvas
+  size (1080×1920, no fit-scale/letterbox — that's only for on-screen display). `WayprintScreen`'s
+  `Success` state gains an "Export" button that calls it (the resulting `Bitmap` is unused until
+  M5.4).
+  **Verify:** on-device only (see shared context) — confirm via logcat (no crash, no `FATAL
+  EXCEPTION`) that tapping Export produces a non-null 1080×1920 `Bitmap`; full visual confirmation
+  folds into M5.4 since there's no on-screen surface for this bitmap yet. `./gradlew build` (same
+  exclusions) passes project-wide.
+
+- [ ] **M5.4** — Save M5.3's `Bitmap` via `MediaStore.Images.Media.insertImage` (see shared
+  context), requesting `WRITE_EXTERNAL_STORAGE` (`maxSdkVersion="28"`) only when
+  `Build.VERSION.SDK_INT < 29`. Pass the resulting `content://` `Uri` to `Intent.ACTION_SEND` +
+  `Intent.createChooser` for the share sheet. Wire as one action on the Export button (save-and-
+  share together, matching CLAUDE.md's "saved/shared via `MediaStore`/share sheet" wording — not
+  two separate buttons).
+  **Verify:** on-device — tap Export, confirm the system share sheet appears with the rendered
+  image attached (openable/selectable from it); confirm the file exists in the device's Pictures
+  collection afterward (Files app or a `MediaStore` query). Screenshot of the rendered canvas plus
+  the share sheet. `./gradlew build` (same exclusions) passes project-wide.
 
 ## M6 — distribution
 
