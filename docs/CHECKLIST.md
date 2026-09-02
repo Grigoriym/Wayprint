@@ -964,16 +964,14 @@ Shared context for all of M6 (re-derive nothing below from scratch):
   **not** generate `wayprint_gplay.jks`/`wayprint_fdroid.jks` (real release keystores) — see shared
   context; `assembleGplayRelease`/`assembleFdroidRelease`/their `bundle*` equivalents keep their
   existing exclusion from `./gradlew build`.
-  **Note:** keystore generated at the repo root (`wayprint_fdroid_debug.jks`, matching
-  `configureAppSigningConfigs()`'s `File(rootDir, ...)` lookup and wallosmobile's own precedent)
-  via `keytool -genkeypair -keyalg RSA -keysize 2048 -validity 10000 -alias
-  wayprint-fdroid-debug`, `-dname "CN=Wayprint F-Droid Debug, OU=Wayprint, O=Wayprint, ..."` —
-  values not specified by this step's own text, picked here since `keytool` needs concrete ones.
-  Store/key password is one `openssl rand -hex 16` value used for both (matching wallosmobile's
-  own shape of a single password serving both roles for its debug keystore). Already covered by
-  the existing repo-root `*.jks` gitignore entry (M0.1) — no new ignore rule needed. Password
-  is local-machine-only (not committed, not printed in this note); the user holds it for
-  M6.3's `gh secret set`.
+  **Note:** a keystore was generated at the repo root (`wayprint_fdroid_debug.jks`, matching
+  `configureAppSigningConfigs()`'s `File(rootDir, ...)` lookup) via `keytool -genkeypair` to prove
+  this step's Verify line, then deleted at the user's explicit request in the same session: the
+  user wants to generate every keystore — debug and release alike — themselves rather than have
+  one AI-generated, so no `wayprint_fdroid_debug.jks` exists on disk as of this step's close.
+  Already covered by the existing repo-root `*.jks` gitignore entry (M0.1) regardless. A future
+  session (whenever the user has generated their own debug keystore) or M6.3 itself is where the
+  matching `WAYPRINT_*_FDROID_DEBUG` env vars/secrets get set — not this step.
   **Verify:** `:androidApp:assembleFdroidDebug` succeeds locally with the new keystore/env vars —
   confirmed (`BUILD SUCCESSFUL`, a build that has been exclusion-listed since M0.3). `./gradlew
   build -x :androidApp:assembleFdroidRelease -x :androidApp:assembleGplayRelease -x
