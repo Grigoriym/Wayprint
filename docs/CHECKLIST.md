@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M1.3
+**Current step:** M1.4
 
 ## How to use this
 
@@ -277,16 +277,28 @@ Shared context for all of M1 (re-derive nothing below from scratch):
   epsilon, plus first/last point identity. `./gradlew :core:gpx:build` (detekt, ktlintCheck,
   testAndroidHostTest, kover) passes — confirmed.
 
-- [ ] **M1.3** — `fitProjection(points, boxW, boxH)` (mean-latitude equirectangular projection,
+- [x] **M1.3** — `fitProjection(points, boxW, boxH)` (mean-latitude equirectangular projection,
   uniform scale-to-fit, `toSvg(lat, lon)`) and `dayPalette(n, hues, s, l)`, ported from
   `fit_projection()` and `day_palette()`. `day_palette()` calls `colorsys.hls_to_rgb`, which has
   no Kotlin stdlib equivalent — port the HLS→RGB formula itself, and watch the argument order
   (Python's `hls_to_rgb(h, l, s)` is hue/lightness/saturation, not hue/saturation/lightness — easy
   to transpose by mistake).
+  **Note:** `fitProjection` returns a `Projection` class (`meanLat`, `scale`, `toSvg(lat, lon):
+  Pair<Double, Double>`) rather than the Python reference's dict-plus-closure, since Kotlin has no
+  closure-returning-function idiom as natural as Python's nested `to_svg`; `cosLat`/`minX`/`minY`
+  are stored as private constructor fields captured once at construction, same values the Python
+  closure captures.
+  **Note:** both `round(x, 1)` (SVG coordinates) and `round(x)` (RGB channels) needed a faithful
+  port of Python's round-half-to-even float rounding, which `kotlin.math` has no equivalent for —
+  used `BigDecimal(value).setScale(n, RoundingMode.HALF_EVEN)`, which operates on the same exact
+  binary value Python's correctly-rounded decimal conversion does; verified to match the Python
+  reference's actual output (not just assumed to match) via the numeric-parity tests below.
   **Verify:** `fitProjection`/`toSvg` unit-tested by projecting the reference's `TOWNS` coordinates
-  and comparing against `to_svg()` output for the same box size. `dayPalette(5)` (the reference's
-  default hues/s/l) asserted against the exact 5 hex colors `day_palette(5)` produces.
-  `detekt`/`ktlintCheck` pass.
+  and comparing against `to_svg()` output for the same box size (`meanLat`, `scale`, and all six
+  towns' projected coordinates matched exactly). `dayPalette(5)` (the reference's default
+  hues/s/l) asserted against the exact 5 hex colors `day_palette(5)` produces — matched exactly
+  (`#cea573`, `#88ce73`, `#73c5ce`, `#8773ce`, `#ce73ad`). `./gradlew :core:gpx:build` (detekt,
+  ktlintCheck, testAndroidHostTest, kover) passes.
 
 - [ ] **M1.4** — Wire M1.1–M1.3 into one pipeline matching the reference's `build()`: parse →
   `rdp`-simplify → project, run on the M1.1 fixture at the reference's defaults
