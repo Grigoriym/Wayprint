@@ -1,5 +1,6 @@
 package com.grappim.wayprint.feature.wayprint.ui
 
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.grappim.wayprint.feature.wayprint.domain.DEFAULT_STORY_PRESET
 import org.koin.compose.viewmodel.koinViewModel
+
+private const val TAG = "WayprintScreen"
 
 private val SCREEN_PADDING = 16.dp
 
@@ -46,11 +49,22 @@ fun WayprintScreen(modifier: Modifier = Modifier, viewModel: WayprintViewModel =
                 }
             }
 
-            layout != null -> WayprintCanvas(
-                layout = layout,
-                preset = DEFAULT_STORY_PRESET,
-                modifier = Modifier.fillMaxSize()
-            )
+            layout != null -> Box(modifier = Modifier.fillMaxSize()) {
+                WayprintCanvas(
+                    layout = layout,
+                    preset = DEFAULT_STORY_PRESET,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Button(
+                    onClick = {
+                        val bitmap = renderWayprintStoryBitmap(layout, DEFAULT_STORY_PRESET)
+                        Log.d(TAG, "Exported ${bitmap.width}x${bitmap.height} bitmap")
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(SCREEN_PADDING)
+                ) {
+                    Text("Export")
+                }
+            }
 
             else -> Button(onClick = { pickGpx.launch("*/*") }) {
                 Text("Import GPX")

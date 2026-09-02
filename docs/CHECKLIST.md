@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M5.3
+**Current step:** M5.4
 
 ## How to use this
 
@@ -807,17 +807,42 @@ Shared context for all of M5 (re-derive nothing below from scratch):
   F-Droid-signing exclusions) passes project-wide, including `detekt`/`ktlintCheck`/lint on the
   changed `androidApp` module.
 
-- [ ] **M5.3** — Factor `WayprintCanvas`'s draw body into a reusable `fun
+- [x] **M5.3** — Factor `WayprintCanvas`'s draw body into a reusable `fun
   DrawScope.drawWayprintStory(layout, preset)` (the existing on-screen `Canvas { }` calls it — same
   visual output, no behavior change). Add a headless `fun renderWayprintStoryBitmap(layout,
   preset): Bitmap`, using `CanvasDrawScope` + `Bitmap.createBitmap` at the preset's exact canvas
   size (1080×1920, no fit-scale/letterbox — that's only for on-screen display). `WayprintScreen`'s
   `Success` state gains an "Export" button that calls it (the resulting `Bitmap` is unused until
   M5.4).
-  **Verify:** on-device only (see shared context) — confirm via logcat (no crash, no `FATAL
-  EXCEPTION`) that tapping Export produces a non-null 1080×1920 `Bitmap`; full visual confirmation
-  folds into M5.4 since there's no on-screen surface for this bitmap yet. `./gradlew build` (same
-  exclusions) passes project-wide.
+  **Note:** `WayprintCanvas` now just computes `fitScale`, applies the `withTransform` letterbox,
+  and calls `drawWayprintStory` inside it — `drawWayprintStory` itself takes only `layout`/`preset`
+  and draws in the preset's own canvas-space coordinates, with no transform of its own, so
+  `renderWayprintStoryBitmap` can call it directly at full size with no letterboxing. Hex-color
+  parsing moved from `WayprintCanvas`'s composable body into `drawWayprintStory`, since it's now the
+  function both callers share.
+  **Note:** `renderWayprintStoryBitmap` builds the `Canvas` via `CanvasDrawScope().draw(density =
+  Density(1f), layoutDirection = LayoutDirection.Ltr, canvas =
+  androidx.compose.ui.graphics.Canvas(android.graphics.Canvas(bitmap)), size = ...)` — the
+  `androidx.compose.ui.graphics.Canvas(...)` factory function needed a fully-qualified reference
+  since `androidx.compose.foundation.Canvas` (the composable) is already imported under the same
+  simple name.
+  **Note:** the "Export" button is placed as a `BottomCenter`-aligned overlay in a `Box` wrapping
+  the existing full-size `WayprintCanvas`, rather than a separate row below it — the step's own text
+  didn't specify a layout and this keeps the canvas at its full letterboxed size rather than
+  shrinking it to make room for a button row.
+  **Note:** no logging framework exists in this project yet — added one `android.util.Log.d`
+  call in the Export button's `onClick` (`"Exported ${bitmap.width}x${bitmap.height} bitmap"`) so
+  this step's own Verify line ("confirm via logcat... a non-null 1080×1920 Bitmap") has something
+  concrete to grep for; the `Bitmap` itself stays otherwise unused per the step's own text.
+  **Note:** on-device verification hit a tap-coordinate friction (eyeballed the Export button's
+  position from a screenshot, missed by ~500px) — logged in `docs/frictions.md` rather than
+  repeated here; re-derived the tap from a `uiautomator dump` instead.
+  **Verify:** on-device — installed `:androidApp:assembleGplayDebug` on `Medium_Phone_API_36.1`,
+  picked the M5.1 fixture GPX via the file picker (same story image as M5.1/M5.2), tapped Export:
+  `adb logcat` shows `WayprintScreen: Exported 1080x1920 bitmap` and no `FATAL EXCEPTION` anywhere in
+  the session. `./gradlew :feature:wayprint:ui:build` (detekt, ktlintCheck, testAndroidHostTest,
+  kover) passes; `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing exclusions) passes
+  project-wide.
 
 - [ ] **M5.4** — Save M5.3's `Bitmap` via `MediaStore.Images.Media.insertImage` (see shared
   context), requesting `WRITE_EXTERNAL_STORAGE` (`maxSdkVersion="28"`) only when
