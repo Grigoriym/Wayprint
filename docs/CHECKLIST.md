@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M0.5
+**Current step:** M0.6
 
 ## How to use this
 
@@ -151,13 +151,28 @@ Ground rules (see `docs/IMPLEMENTATION_PLAN.md` for the *why* behind any of thes
   (`ActivityTaskManager: Displayed ... +728ms`), and a screenshot confirms the centered
   "Wayprint" text — now rendered via the injected `GreetingProvider`.
 
-- [ ] **M0.5** — Symlink agentic-grappim skills into `wayprint/.claude/skills/`: `finalize`,
+- [x] **M0.5** — Symlink agentic-grappim skills into `wayprint/.claude/skills/`: `finalize`,
   `update-gradle-wrapper`, `emulator-testing`, `kover-coverage-sweep`, `compose-stability-audit`,
   `masvs-review` (relative symlinks, `../../../agentic-grappim/skills/<name>` — never copied,
   per that repo's README). Then, with the user's explicit confirmation in that session, add
   Wayprint to the project list in `agentic-grappim/README.md`.
-  **Verify:** `ls -la .claude/skills/` shows each as a symlink resolving into
-  `../agentic-grappim/skills/`; the skills are invokable (e.g. `/finalize` recognized).
+  **Note:** `finalize`, `update-gradle-wrapper`, `emulator-testing`, `masvs-review` were already
+  reachable in this session via pre-existing user-level symlinks
+  (`~/.claude/skills/<name>` → `agentic-grappim/skills/<name>`), so those four were already
+  confirmed invokable (they appeared in this session's skill listing) before the project-level
+  symlinks existed. `kover-coverage-sweep` and `compose-stability-audit` have no user-level
+  symlink and only became reachable via this step's new `wayprint/.claude/skills/` symlinks;
+  confirming *those* two are recognized needs a fresh session (skill discovery is scanned at
+  session start), consistent with this checklist's one-fresh-session-per-step workflow — not
+  re-verified here to avoid actually running either skill's workflow as a side effect just to
+  prove it resolves.
+  **Note:** user confirmed via AskUserQuestion before the `agentic-grappim/README.md` edit, per
+  this step's explicit-confirmation requirement.
+  **Verify:** `ls -la .claude/skills/` shows each of the six as a symlink resolving (via
+  `readlink -f`) to an existing directory under `agentic-grappim/skills/` — confirmed. Skill
+  invokability confirmed for `finalize`/`update-gradle-wrapper`/`emulator-testing`/
+  `masvs-review` (already in this session's listing); `kover-coverage-sweep`/
+  `compose-stability-audit` deferred to a fresh session per the note above.
 
 - [ ] **M0.6** — Merge `agentic-grappim/templates/CLAUDE.md.template`'s structure (working
   agreements, settled-decisions table, reference-projects section) into Wayprint's `CLAUDE.md`,
