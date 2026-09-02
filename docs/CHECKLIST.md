@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M3.4
+**Current step:** M4 step-break-down
 
 ## How to use this
 
@@ -501,18 +501,36 @@ Shared context for all of M3 (re-derive nothing below from scratch):
   passes; `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing exclusions) passes
   project-wide.
 
-- [ ] **M3.4** — Wire M3.1–M3.3 into one pipeline (e.g. `buildWayprintLayout(gpxInput,
+- [x] **M3.4** — Wire M3.1–M3.3 into one pipeline (e.g. `buildWayprintLayout(gpxInput,
   preset): WayprintLayout`): parse + project the route (via `core:gpx`), compute the Start/Finish
   label anchors from the route's projected first/last points and the distance label's anchor from
   the projected bounding-box center, run M3.2's greedy placer over them in the fixed priority
   order, and return the projected path plus the 3 placed labels as one `WayprintLayout` — the
   shape M4 renders directly.
+  **Note:** `WayprintRoute.path` (M3.3) is in route-box-local coordinates (`0..routeBoxWidth,
+  0..routeBoxHeight`), not canvas coordinates — `buildWayprintLayout` translates every path point
+  by `(preset.marginX, preset.marginY)` before computing anchors/placing labels, since
+  `marginX`/`marginY` exist precisely to center that box in the full canvas
+  (`marginX*2 + routeBoxWidth == canvasWidth`, same for Y) and "the shape M4 renders directly"
+  reads as already-final canvas coordinates, not something M4 has to offset itself.
+  IMPLEMENTATION_PLAN.md §9's collision-avoidance write-up also says candidates fall back when
+  they'd cross "the canvas edge," confirming `placeLabels`' `canvasBounds` here is the full
+  `0,0,canvasWidth,canvasHeight` rect, not the smaller route box.
+  **Note:** the distance label's bounding-box-center anchor is the bbox of the (translated) route
+  path itself, per IMPLEMENTATION_PLAN.md §9 ("the route's bounding-box center for the distance
+  label") — not the canvas center.
+  **Note:** the distance label's text (`"%.1f km"`, e.g. `"26.2 km"`, via
+  `String.format(Locale.ROOT, ...)` for a locale-independent decimal separator) and the candidate
+  offset distance (`LABEL_OFFSET = 24.0`, a module-private constant alongside the others M3.2
+  hardcoded) were both undecided by this step's own text or IMPLEMENTATION_PLAN.md — picked here
+  since `LabelRequest`/`PlacedLabel` need concrete values, not deferred further.
   **Verify:** `WayprintLayoutTest` runs the pipeline on the M1 fixture and asserts: exactly 3
   labels are returned (Start/Finish/distance), none of their bounding boxes overlap each other,
-  and each stays within the canvas bounds. No Python reference exists for this pipeline (this
-  logic isn't in `gpx_route_art.py`), so expectations are hand-verified against the fixture's
-  actual geometry, not ported numeric parity. `./gradlew :feature:wayprint:domain:build` (detekt,
-  ktlintCheck, testAndroidHostTest, kover) passes.
+  and each stays within the canvas bounds — confirmed. No Python reference exists for this
+  pipeline (this logic isn't in `gpx_route_art.py`), so expectations are hand-verified against the
+  fixture's actual geometry, not ported numeric parity. `./gradlew :feature:wayprint:domain:build`
+  (detekt, ktlintCheck, testAndroidHostTest, kover) passes; `./gradlew build` (same pre-existing
+  M0.3/M0.4 F-Droid-signing exclusions) passes project-wide.
 
 ## M4 — `feature:wayprint:ui`
 
