@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M3
+**Current step:** M3.1
 
 ## How to use this
 
@@ -403,8 +403,73 @@ Shared context for all of M2 (re-derive nothing below from scratch):
 
 ## M3 — `feature:wayprint:domain`
 
-Route model, style presets, label collision-avoidance layout. **Blocked on an algorithm
-decision** — see IMPLEMENTATION_PLAN.md §9. Resolve that first, then step-break-down M3.
+Route model, style presets, label collision-avoidance layout — the one real "domain" concern
+this app has (IMPLEMENTATION_PLAN.md §4). Broken down below into the geometry primitives the
+placement algorithm needs, the algorithm itself, the style preset + route/distance model, and a
+capstone step wiring all three into one pipeline M4 can render from directly.
+
+Shared context for all of M3 (re-derive nothing below from scratch):
+- Algorithm and label-scope decisions: see IMPLEMENTATION_PLAN.md §9 (greedy dodge-by-priority,
+  fixed priority order Start → Finish → distance; label set is Start/Finish markers + total
+  distance only, no date).
+- `feature:wayprint:domain` applies only `wayprint.kmp.library` + `wayprint.kmp.library.stability`
+  (IMPLEMENTATION_PLAN.md §5) — no Compose plugin, so nothing here may depend on Compose types
+  (`androidx.compose.ui.graphics.Color`, `Dp`, etc.). Colors stay hex strings (matching
+  `core:gpx`'s `dayPalette()` return shape); sizes stay plain `Double`/`Int` in the same SVG-space
+  units `core:gpx`'s `fitProjection`/`toSvg` already use. M4 (which does apply the Compose plugin)
+  converts to Compose types at the boundary, not this module.
+- Total distance is summed with `core:gpx`'s `haversineKm` over the **raw** (pre-`rdp`) points,
+  not the simplified ones — `rdp` exists to declutter the drawn line, not to change what number is
+  reported as the ridden distance.
+- Route-line vs. label overlap is deliberately **not** part of the collision check (see the
+  algorithm decision in IMPLEMENTATION_PLAN.md §9) — M4 handles legibility over the line with a
+  stroke halo behind label text, the same `paint-order: stroke` technique
+  `elbe-story-actual.html` uses. Don't add route-line geometry to this module's overlap checks.
+
+- [ ] **M3.1** — Geometry primitives: a `Rect` (or equivalent bounding-box) type with an
+  `overlaps(other: Rect): Boolean` check, a `TextAnchor` enum (`START`/`MIDDLE`/`END`, matching
+  SVG `text-anchor` — M4 needs to know which edge of a label's box is pinned to its `x,y`), and a
+  `PlacedLabel` data class (`text`, `x`, `y`, `anchor`, derived/stored bounding box). Unit tests
+  cover `Rect.overlaps` edge cases (disjoint, touching-but-not-overlapping, fully contained,
+  partial overlap).
+  **Verify:** `./gradlew :feature:wayprint:domain:build` (detekt, ktlintCheck, testAndroidHostTest,
+  kover) passes.
+
+- [ ] **M3.2** — The greedy placement algorithm itself: given a label's anchor point, its text
+  (for estimated bbox size — a fixed char-width-times-length approximation is fine, no real font
+  metrics available in a pure-Kotlin module), and an ordered list of candidate offset/anchor pairs
+  (compass-style: right, left, above, below), plus the set of already-placed labels' boxes and the
+  canvas bounds, return the first candidate that clears all of them, or the last candidate if none
+  do. A second function folds this over a priority-ordered list of labels into a
+  `List<PlacedLabel>`. Unit tests: (a) labels far apart place at their first/preferred candidate;
+  (b) two labels whose preferred candidates collide — the lower-priority one is verified to fall
+  back to a later candidate; (c) a forced-unresolvable case (every candidate collides) falls back
+  to the last candidate rather than throwing.
+  **Verify:** `./gradlew :feature:wayprint:domain:build` (detekt, ktlintCheck, testAndroidHostTest,
+  kover) passes.
+
+- [ ] **M3.3** — `StoryPreset` (the single hardcoded MVP style preset: 1080×1920 canvas, the
+  route-art box size/margins within it, line/background/text colors as hex strings — own palette,
+  not the Elbe reference's paper/ochre one, consistent with `uikit`'s M2 forest-green theme) and a
+  route/distance model wrapping `core:gpx`'s `buildRouteArt` output: total distance (see shared
+  context above) plus the projected path ready to draw. No label placement yet — that's M3.4.
+  **Verify:** unit test asserts total distance on the M1 fixture GPX matches the reference script's
+  own distance figure (sum of `haversine_km` over consecutive raw points) run on the same file.
+  `./gradlew :feature:wayprint:domain:build` (detekt, ktlintCheck, testAndroidHostTest, kover)
+  passes.
+
+- [ ] **M3.4** — Wire M3.1–M3.3 into one pipeline (e.g. `buildWayprintLayout(gpxInput,
+  preset): WayprintLayout`): parse + project the route (via `core:gpx`), compute the Start/Finish
+  label anchors from the route's projected first/last points and the distance label's anchor from
+  the projected bounding-box center, run M3.2's greedy placer over them in the fixed priority
+  order, and return the projected path plus the 3 placed labels as one `WayprintLayout` — the
+  shape M4 renders directly.
+  **Verify:** `WayprintLayoutTest` runs the pipeline on the M1 fixture and asserts: exactly 3
+  labels are returned (Start/Finish/distance), none of their bounding boxes overlap each other,
+  and each stays within the canvas bounds. No Python reference exists for this pipeline (this
+  logic isn't in `gpx_route_art.py`), so expectations are hand-verified against the fixture's
+  actual geometry, not ported numeric parity. `./gradlew :feature:wayprint:domain:build` (detekt,
+  ktlintCheck, testAndroidHostTest, kover) passes.
 
 ## M4 — `feature:wayprint:ui`
 

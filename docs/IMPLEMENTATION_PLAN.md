@@ -139,10 +139,27 @@ scope jump), multiple layout templates (poster, square, story), iOS/Desktop targ
   and no `config/detekt/detekt.yml` / `config/compose/stability_config.conf` (copied from
   wallosmobile; detekt.yml trimmed of its `WallosMobile:` custom-rule section). See
   `docs/CHECKLIST.md`'s M0.2 note for the full list.
-- **Collision-avoidance algorithm** — not designed yet. M3 needs a concrete approach (e.g.
-  force-directed label placement, or a simpler greedy dodge-by-priority) before it can be
-  step-broken-down in the checklist. Decide at the start of M3, informed by how the hand-tuned
-  Elbe route positions actually worked.
+- ~~**Collision-avoidance algorithm**~~ — **Resolved at M3 step-break-down.** Greedy
+  dodge-by-priority, not force-directed: each label gets a fixed anchor point (a route endpoint,
+  or the route's bounding-box center for the distance label) plus an ordered list of candidate
+  offset placements (compass-style — right/left/above/below, matching how the hand-tuned Elbe
+  labels were each nudged in one clear direction with a `text-anchor` of `start`/`end` to dodge
+  the line — see `elbe-story-actual.html`'s town-label `<text>` elements). Labels are placed one
+  at a time in a fixed priority order (Start, Finish, then the distance label); each tries its
+  candidates in order and takes the first whose bounding box doesn't overlap an already-placed
+  label or the canvas edge, falling back to its last candidate (accepting the overlap) if none
+  clear. Force-directed placement was rejected: MVP only ever has 3 fixed labels (see the label-
+  scope decision below), so a physics simulation is solving a much harder problem than this one
+  actually is — CLAUDE.md's "Simplicity first" agreement. The Elbe reference's own halo (`paint-
+  order: stroke` behind each label) is why label-vs-route-line overlap doesn't need to be part of
+  the collision check at all — port that halo technique in M4's renderer, not a geometry check
+  here.
+- **M3 label scope** — user decided (2026-09-02): Start marker, Finish marker, total distance
+  only. No date label in MVP — `core:gpx`'s `TrackPoint` (M1) carries no timestamp
+  (`parse_track()` never did either), and adding one would reopen M1's parser scope. CLAUDE.md's
+  MVP-scope line "distance/date text" is satisfied partially (distance only); revisit date as its
+  own small step later if wanted, ported from a GPX `<metadata><time>` or first `<trkpt>`'s
+  `<time>` element.
 - **KMP target list at launch** — Android is the only real target for MVP (per CLAUDE.md, iOS/
   Desktop are v2+ bets). Decide in M0 whether `core:gpx`/`uikit` should still declare iOS/Desktop
   source sets from day one (cheap to leave the door open) or Android-only until there's a second
