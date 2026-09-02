@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M0.6
+**Current step:** M1 (step-break-down not yet done — see M1 section below)
 
 ## How to use this
 
@@ -174,12 +174,28 @@ Ground rules (see `docs/IMPLEMENTATION_PLAN.md` for the *why* behind any of thes
   `masvs-review` (already in this session's listing); `kover-coverage-sweep`/
   `compose-stability-audit` deferred to a fresh session per the note above.
 
-- [ ] **M0.6** — Merge `agentic-grappim/templates/CLAUDE.md.template`'s structure (working
+- [x] **M0.6** — Merge `agentic-grappim/templates/CLAUDE.md.template`'s structure (working
   agreements, settled-decisions table, reference-projects section) into Wayprint's `CLAUDE.md`,
   keeping all existing content (Concept/Origin/MVP scope/Architecture/Naming/Next steps)
   untouched — add the template's sections around it, don't replace anything.
+  **Note:** only the three sections named in this step's own text were merged (not the template's
+  other sections — "What this file is not", "Shared skills and agents", "Close-out", "Changing a
+  check means saying so", "Verification", "Plain technical English", "Chat replies") — the step's
+  parenthetical reads as an explicit, narrower scope than "the whole template," consistent with
+  the "don't do a step's cleanup/polish beyond what its Verify line asks for" ground rule.
+  **Note:** followed TaigaMobileNova's/wallosmobile's precedent (both have evolved past the raw
+  template's wording) for how to fill the template's placeholders on a first pass: `Settled
+  decisions` populated from decisions already stated in Concept/Origin/MVP scope above plus
+  M0.1's `KmpNetworkConventionPlugin`-skip note, rather than left as an empty table; `Reference
+  projects` points at `../TaigaMobileNova` and `../wallosmobile` with the specific things ported
+  from each so far (build-logic convention plugins, `KoinGraphTest` shape). `docs/revisit.md` and
+  `docs/frictions.md` are referenced but not created — neither has been needed yet; per the
+  template's own text, `frictions.md` gets created the first time a session actually hits friction
+  worth logging, not pre-emptively here.
   **Verify:** `CLAUDE.md` still reads correctly top-to-bottom as a single coherent doc; nothing
-  from the original content was lost, diffed against git history for this file.
+  from the original content was lost, diffed against git history for this file — confirmed
+  (`git diff CLAUDE.md` shows only additions, `git diff --stat` reports `141 insertions(+)`, `0
+  deletions(-)`).
 
 ## M1 — `core:gpx`
 

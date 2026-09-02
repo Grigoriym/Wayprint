@@ -84,3 +84,144 @@ rather than a throwaway story image).
    with unit tests.
 4. Build the single story-size Canvas renderer and export/share flow end-to-end for one
    hardcoded style preset before adding any customization.
+
+## Working agreements
+
+**Tradeoff:** these bias toward caution over speed. For trivial tasks, use judgment.
+
+### Think before coding
+
+Don't assume. Don't hide confusion. Surface tradeoffs.
+
+- State assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+- **An answer is not an instruction to act.** If the user states a preference or decision that a
+  later, not-yet-requested step will need, record it for when that step is asked for — don't treat
+  it as authorization to run the step now.
+
+### Simplicity first
+
+Minimum code that solves the problem. Nothing speculative.
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask: "would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+### Surgical changes
+
+Touch only what you must. Clean up only your own mess.
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor what isn't broken. Match existing style, even if you'd do it
+  differently.
+- Don't add UI or navigation that wasn't asked for.
+- Remove imports, variables and functions **your** change orphaned. Leave pre-existing
+  dead code alone — mention it instead.
+
+**Every changed line should trace directly to the request.**
+
+### Don't break production in favor of tests
+
+Production code must not be shaped by testing needs. If a code path is flaky or can't be
+observed deterministically as written, fix or remove the *test* — don't add a seam,
+injectable parameter, or abstraction to production code purely so a test can control
+it. This holds even when the change is small, additive, and provably safe (e.g. a
+defaulted constructor parameter verified not to affect the DI graph) — the question is
+not "is this change safe," it's "does this belong in production code at all."
+
+Prefer, in order: (1) a lower-level test that already covers the behavior
+deterministically without the racy synchronization; (2) simplify the test to avoid it;
+(3) delete the test and say so plainly, rather than leaving a known flake undocumented.
+
+Always ask before adding any production-code testability seam, even a well-verified
+one.
+
+### Determinism over process
+
+If a task has one correct, computable answer, use a tool for it. Don't ask the agent to
+follow a fixed procedure by hand.
+
+- A checksum, a sort order, a date calculation, a schema check: write a script or a
+  hook. Call it as a tool.
+- An agent following prose steps can skip a step, or get one wrong. A script cannot.
+- Reserve the agent's judgment for what needs judgment: ambiguous input, a plan, a
+  choice between options.
+- Writing a new skill: find a step that says "always do X the same way." Replace it
+  with a tool call, not a longer instruction.
+
+Ask: "does this step have one right answer, computable without judgment?" If yes,
+write the tool, not the instruction.
+
+### Goal-driven execution
+
+Turn a task into a verifiable goal — "fix the bug" becomes "write a failing test, then
+make it pass". For multi-step work, state the steps with a check each, then loop until
+they pass.
+
+### A real problem outside the task goes in writing
+
+Write it into `docs/revisit.md` and keep going. Not fixed inline — that makes the
+diff unreviewable. Not dropped. And **not just mentioned in chat: chat is not
+persistence.** Give the entry enough evidence (`file:line`, or a link) that a cold
+session can act on it without re-deriving anything.
+
+### Friction goes in writing too
+
+The rule above is for problems in the **code**. This one is for friction in the
+**tooling**, and it is the one that silently never gets reported: a guessed URL that
+404s, an auth error on something another tool already reaches, a command that needed
+different quoting, a check that confidently returned the wrong answer. The reflex is to
+route around it and say nothing.
+
+Add a line to `docs/frictions.md` before moving on — **create the file if it isn't there**,
+that is not a decision worth pausing over:
+
+```markdown
+# Frictions
+
+Tooling friction hit during work, newest last. One line each. Promoted or fixed
+entries get deleted — see /finalize.
+```
+
+One line, past tense, naming the tool and the surprise. Don't stop working to write it
+and don't editorialise. **This is for what you routed around without mentioning** — not
+for failures you were going to report anyway.
+
+At the end of the task, **read the file** and list what you added, with a count, even when
+the count is zero. Read it rather than recalling it: small friction is gone from recall by
+then, which is the whole reason the file exists. And a silent miss must not look like a
+smooth run.
+
+The same friction three times is a fix, not a fourth line — a permission entry, a line in
+this file, or a skill. `/finalize` is where that promotion happens.
+
+## Settled decisions
+
+Weighed and declined — don't re-propose these.
+
+| Not used | Instead | Why |
+|---|---|---|
+| Elevation gradient + silhouette graph | Flat color per track/day | Tried in the Elbe prototype; found ambiguous/confusing, removed. See Origin above. |
+| Separate legend for route labels | Labels placed directly on the route art | Prototype's design iteration; needs an automatic collision-avoidance layout in the app (main non-trivial engineering piece, not the rendering itself). |
+| Live Leaflet/OSM-tile basemap | Hand-projected pure vector/line-art rendering | Tried in the Elbe prototype; looked wrong for the story format. Don't reintroduce as the default without a fresh design discussion. |
+| Health Connect / Strava OAuth import, on-device recording | GPX file only (file picker / share-intent) | Deferred past MVP; on-device recording in particular turns this into a tracking app, a much bigger scope jump. |
+| `KmpNetworkConventionPlugin` (ported from `wallosmobile`'s `build-logic`) | Skipped entirely | No network in MVP (IMPLEMENTATION_PLAN.md §4). |
+
+## Reference projects
+
+Read these rather than guessing; the conventions here are ported from them.
+
+- `../TaigaMobileNova` — module structure, Koin DI graph shape (`KoinGraphTest`), KMP project
+  scaffolding pattern.
+- `../wallosmobile` — `build-logic` convention plugins, ported directly in M0.1; Android-only KMP
+  module shape; `KoinGraphTest`'s `koin-test`/`.verify()` form, used in M0.4 since Wayprint, like
+  wallosmobile, is Android-only.
+
+**Trust their code over their docs.** Another project's `CLAUDE.md` can contradict its own
+implementation — both of these repos have had exactly that. Note a drift here when you find one.
