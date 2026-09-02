@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M2 (step-break-down)
+**Current step:** M2.1
 
 ## How to use this
 
@@ -318,7 +318,61 @@ Shared context for all of M1 (re-derive nothing below from scratch):
 ## M2 — `uikit`
 
 Theme (`Colors.kt`, `Dimens.kt`, `Typography.kt`, `Theme.kt`), and the small set of shared
-widgets M4's screen will actually need (not more). Step-break-down at the start of M2.
+widgets M4's screen will actually need (not more). Broken down below into the color
+scheme/`Theme.kt` piece and the typography/spacing piece, each wired into `composeApp`'s existing
+M0.2/M0.4 placeholder screen so the step is actually exercised, not just compiled in isolation.
+
+Shared context for all of M2 (re-derive nothing below from scratch):
+- Reference: `../wallosmobile`'s `uikit/src/commonMain/kotlin/.../Color.kt`/`Theme.kt`/`Type.kt`
+  and `../TaigaMobileNova`'s `uikit/src/commonMain/kotlin/.../theme/{Colors,Dimens,Typography,
+  Theme}.kt` — port the *pattern* from each, not the file; both are reference-only, coupled to
+  their own apps, per `IMPLEMENTATION_PLAN.md` §2/§4. The four filenames this milestone uses
+  (`Colors.kt`, `Dimens.kt`, `Typography.kt`, `Theme.kt`) match Taiga's flat `theme/` package
+  shape, not wallosmobile's.
+- wallosmobile's `Theme.kt` also wires three composition locals of its own (`LocalTopBarConfig`,
+  `LocalIsOffline`, `LocalSnackbarHostController`) because that app has a shell with a top bar,
+  an offline banner, and a snackbar host. Wayprint has none of that infrastructure yet — M4
+  hasn't been designed, and today's placeholder screen is a single centered `Text`. `WayprintTheme`
+  here is just `MaterialTheme` + `Surface` (wallosmobile's own doc comment on why the `Surface`
+  belongs to the theme, not the caller, still applies — port that reasoning, not the locals).
+  Add a composition local later only when a real step needs one.
+- No shared widgets in M2, despite IMPLEMENTATION_PLAN.md §4's "small set of shared widgets M4's
+  screen will actually need" phrasing. M4 is explicitly "step-break-down at the start of M4" —
+  still undesigned — so any widget built now would be a guess at M4's UI before M4 decides what
+  it needs, which is exactly the speculative structure CLAUDE.md's "Simplicity first" agreement
+  warns against. Leave every widget for the M4 step that first needs it.
+- Color values: neither root `CLAUDE.md` nor `IMPLEMENTATION_PLAN.md` decides a brand palette for
+  app chrome (buttons, backgrounds, app bar if one ever exists) — that's a different thing from
+  `core:gpx`'s `dayPalette()`, which colors the route art itself and is unrelated to this. M2.1
+  picks *a* reasonable static Material3 light/dark `ColorScheme` (own seed hue, not dynamic
+  color, matching Taiga's/wallosmobile's static-palette precedent over Android 12's
+  wallpaper-based dynamic color) rather than leaving the choice open — the exact hue is not
+  load-bearing this early (nothing downstream depends on a specific color yet) and can be
+  revisited freely later.
+
+- [ ] **M2.1** — `Colors.kt` (a light and a dark Material3 `ColorScheme`, own static seed
+  palette) and `Theme.kt` (`@Composable fun WayprintTheme(darkTheme: Boolean =
+  isSystemInDarkTheme(), content: @Composable () -> Unit)`, wrapping `content` in `MaterialTheme`
+  + a theme-owned `Surface`, per shared context above — no composition locals). Wire it into
+  `composeApp`: `WayprintAppContent.kt`'s bare `MaterialTheme { Surface { ... } }` becomes
+  `WayprintTheme { ... }` (the `Surface` moves into the theme, so the call site drops its own).
+  **Verify:** a `ContrastTest` (ported pattern from wallosmobile's, WCAG AA 4.5:1 normal-text
+  contrast) asserts every light/dark `ColorScheme` pair used for text-on-background in `Colors.kt`
+  meets the bar. `./gradlew :uikit:build` (detekt, ktlintCheck, kover) and `./gradlew build` (same
+  pre-existing M0.3/M0.4 F-Droid-signing exclusions) pass. Installed on the emulator: screenshot
+  confirms the centered "Wayprint" text screen still renders correctly, now through
+  `WayprintTheme`.
+
+- [ ] **M2.2** — `Typography.kt` (a `Typography` instance for `MaterialTheme`'s standard Material3
+  type scale, default platform font — no custom font asset) and `Dimens.kt` (start with exactly
+  one named spacing constant — more get added by whichever later step first needs them, not
+  pre-emptively here, per the "no speculative structure" reasoning in shared context above). Wire
+  both into `composeApp`: `WayprintTheme` passes the new `Typography` into its `MaterialTheme`
+  call, and the placeholder screen's `Box` uses the new spacing constant as padding (so `Dimens.kt`
+  has an actual caller, not a dangling unused value).
+  **Verify:** `./gradlew :uikit:build` (detekt, ktlintCheck, kover) and `./gradlew build` (same
+  exclusions) pass. Installed on the emulator: screenshot confirms the "Wayprint" text still
+  renders, now padded and through the new typography.
 
 ## M3 — `feature:wayprint:domain`
 
