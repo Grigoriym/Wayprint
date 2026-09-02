@@ -126,19 +126,19 @@ scope jump), multiple layout templates (poster, square, story), iOS/Desktop targ
 
 ## 9. Open decisions / risks
 
-- **`core:logger` / `detekt-rules` hard dependencies copied in from wallosmobile** — found while
-  doing M0.1 (build-logic port). `KmpConfiguration.kt`'s `configureKmp()` (applied by every
-  `wayprint.kmp.library` module) unconditionally adds `implementation(project(":core:logger"))`
-  to `commonMain`, and `Quality.kt`'s `configureLinting()` unconditionally adds
-  `detektPlugins(project(":detekt-rules"))`. Neither module is in Wayprint's module table (§4/§5)
-  — §4 explicitly defers `detekt-rules`, and `core:logger` isn't mentioned at all. Left as-is in
-  M0.1 (out of scope for a copy/rename step; convention:build doesn't execute these functions
-  since no module applies the plugin yet), but the **first** module M0.3 wires up that applies
-  `wayprint.kmp.library` will fail to resolve until one of these is done: (a) scaffold trivial
-  `:core:logger` and `:detekt-rules` modules in M0.3 alongside the others, or (b) strip those two
-  lines from the copied `KmpConfiguration.kt`/`Quality.kt` since Wayprint doesn't need a shared
-  logger or custom detekt rules yet. (b) is simpler and matches the "no speculative structure"
-  instruction in root `CLAUDE.md` — decide at the start of M0.3.
+- ~~**`core:logger` / `detekt-rules` hard dependencies copied in from wallosmobile**~~ —
+  **Resolved in M0.2** (surfaced sooner than expected: `composeApp` applying
+  `wayprint.kmp.library.compose` already needed this fixed, not just M0.3's modules). Took
+  option (b): stripped the unconditional `implementation(project(":core:logger"))` line from
+  `KmpConfiguration.kt`'s `configureKmp()` and the `detektPlugins(project(":detekt-rules"))`
+  line from `Quality.kt`'s `configureLinting()`. M0.2 also found the same convention-plugin
+  module-doesn't-exist-yet problem for `:testing` (guarded with a `findProject(":testing") !=
+  null` check instead, since that module *is* still planned for M0.3) and two related gaps from
+  M0.1's root scaffolding: no root `build.gradle.kts` (AGP/Compose/Koin/Kover need `apply
+  false`-ing there so their DSL types are loadable before a convention plugin references them)
+  and no `config/detekt/detekt.yml` / `config/compose/stability_config.conf` (copied from
+  wallosmobile; detekt.yml trimmed of its `WallosMobile:` custom-rule section). See
+  `docs/CHECKLIST.md`'s M0.2 note for the full list.
 - **Collision-avoidance algorithm** — not designed yet. M3 needs a concrete approach (e.g.
   force-directed label placement, or a simpler greedy dodge-by-priority) before it can be
   step-broken-down in the checklist. Decide at the start of M3, informed by how the hand-tuned

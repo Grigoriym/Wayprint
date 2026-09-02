@@ -1,0 +1,21 @@
+plugins {
+    // this is necessary to avoid the plugins to be loaded multiple times
+    // in each subproject's classloader
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.android.kotlin.multiplatform.library) apply false
+    alias(libs.plugins.jetbrains.compose) apply false
+    alias(libs.plugins.jetbrains.compose.compiler) apply false
+    alias(libs.plugins.jetbrains.kotlin.multiplatform) apply false
+    alias(libs.plugins.koin.compiler) apply false
+    alias(libs.plugins.kover) apply false
+
+    // Applied, not `apply false`: the root project lints its own build scripts — mirrors
+    // build-logic/convention's own minimal shape, since `configureLinting()` lives inside that
+    // project and can't apply to itself either.
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.ktlint)
+}
+
+tasks.register<Delete>("clean") {
+    delete(rootProject.layout.buildDirectory)
+}

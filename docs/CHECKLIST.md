@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M0.2
+**Current step:** M0.3
 
 ## How to use this
 
@@ -56,12 +56,38 @@ Ground rules (see `docs/IMPLEMENTATION_PLAN.md` for the *why* behind any of thes
   **Verify:** `./gradlew :build-logic:convention:build` succeeds, and `./gradlew help` succeeds
   at the root with no modules declared yet beyond `build-logic`. Both confirmed green.
 
-- [ ] **M0.2** — `androidApp` + `composeApp` skeletons: `composeApp` applies
+- [x] **M0.2** — `androidApp` + `composeApp` skeletons: `composeApp` applies
   `wayprint.kmp.library.compose` + `wayprint.kmp.di`, shows a single hardcoded "Wayprint" text
   screen; `androidApp` applies `wayprint.android.application` and launches it.
-  **Verify:** `./gradlew :androidApp:assembleDebug` succeeds and installs/launches on an
-  emulator showing the placeholder screen (see the `emulator-testing` skill once wired in
-  M0.5 — a manual `adb install` + launch is fine for this step if the skill isn't set up yet).
+  **Note:** applying `wayprint.kmp.library.compose` to `composeApp` surfaced three more latent
+  M0.1 scaffolding gaps beyond the core:logger/detekt-rules one already flagged (that one was
+  fixed here too, taking IMPLEMENTATION_PLAN.md §9 option (b) — the unconditional
+  `project(":core:logger")` and `detektPlugins(project(":detekt-rules"))` lines were stripped
+  from `KmpConfiguration.kt`/`Quality.kt`, since neither module is in Wayprint's plan):
+  (1) no root `build.gradle.kts` existed — without one applying the AGP/Compose/Koin/Kover
+  plugins `apply false`, the first module to actually apply a convention plugin referencing
+  their DSL types (`ApplicationExtension`, then the plain-string `org.jetbrains.kotlinx.kover`
+  apply) hit `NoClassDefFoundError`/`Plugin ... not found` — added one mirroring wallosmobile's,
+  scoped to only the plugins Wayprint's M0 modules actually use; (2) `config/detekt/detekt.yml`
+  and `config/compose/stability_config.conf` didn't exist — `configureLinting()`/
+  `configureComposeStabilityConfig()` reference them unconditionally — copied from wallosmobile
+  (detekt.yml trimmed of its `WallosMobile:` custom-rule section, since `:detekt-rules` isn't
+  scaffolded); (3) `configureTests()`'s unconditional `implementation(project(":testing"))` hit
+  the same "module doesn't exist yet" problem — unlike (1)'s modules, `:testing` *is* still
+  planned (M0.3), so this one got a `findProject(":testing") != null` guard instead of being
+  stripped, so it starts working automatically once M0.3 scaffolds it. Also missing: root
+  `local.properties` (`sdk.dir`), now added (gitignored, machine-local as usual).
+  **Note:** `:androidApp:assembleDebug` (the flavor-aggregate task) fails on a clean checkout —
+  it also builds `assembleFdroidDebug`, which the ported `AndroidApplicationConventionPlugin`
+  force-signs (Variant API) with an F-Droid debug keystore + env-var password that were never
+  Wayprint-specific to begin with (still named/expecting wallosmobile's, and M6 is where
+  F-Droid/Play signing/secrets actually get set up) — verified against
+  `:androidApp:assembleGplayDebug` instead, which uses AGP's own auto-generated debug signing
+  and needs no secrets. Recorded in `docs/EMULATOR_TESTING.md` (new) for future sessions.
+  **Verify:** `./gradlew :androidApp:assembleGplayDebug` succeeds (confirmed); installed via
+  `adb install` and launched on a `Medium_Phone_API_36.1` emulator — screenshot confirmed the
+  centered "Wayprint" text screen. `detekt`/`ktlintCheck` pass on `composeApp`, `androidApp`,
+  `build-logic:convention`, and the root project.
 
 - [ ] **M0.3** — Empty module skeletons wired into `settings.gradle.kts`, each with only the
   convention plugins from IMPLEMENTATION_PLAN.md §5 applied and a placeholder file (no real

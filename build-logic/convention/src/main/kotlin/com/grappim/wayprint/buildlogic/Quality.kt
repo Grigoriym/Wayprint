@@ -47,8 +47,10 @@ private fun Project.configureCommonTestDependencies() {
                 implementation(kotlin("test"))
                 implementation(libs.findLibrary("turbine").get())
 
-                // Guarded only against `:testing` depending on itself.
-                if (projectPath != ":testing") {
+                // Guarded against `:testing` depending on itself, and against a module applying
+                // this plugin before `:testing` is scaffolded (M0.3) — until then, a module with
+                // no fakes to consume yet must still be able to configure.
+                if (projectPath != ":testing" && findProject(":testing") != null) {
                     implementation(project(":testing"))
                 }
             }
@@ -100,11 +102,5 @@ fun Project.configureLinting() {
     dependencies {
         "ktlintRuleset"(libs.findLibrary("composeRules-ktlint").get())
         "detektPlugins"(libs.findLibrary("composeRules-detekt").get())
-
-        // M26: the detekt port of :lint-rules' UnstableCollectionInUiState check — unlike
-        // `lintChecks` above, a `detektPlugins` rule runs as part of the *consuming* module's own
-        // `detekt` task, so this one real reaches every module's own `feature:*:ui`/`composeApp`/
-        // `uikit` source, closing docs/revisit.md #1.
-        "detektPlugins"(project(":detekt-rules"))
     }
 }

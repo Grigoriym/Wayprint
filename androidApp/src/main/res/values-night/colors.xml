@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Placeholder until M2 (uikit) defines the real theme surface colors. -->
+    <color name="window_background">#1A1B1F</color>
+</resources>

@@ -34,4 +34,6 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-// Modules are declared here starting M0.4 (empty skeletons) and M0.3 (androidApp/composeApp).
+include(":androidApp", ":composeApp")
+
+// Remaining modules are declared here starting M0.3 (empty core/feature/uikit skeletons).
