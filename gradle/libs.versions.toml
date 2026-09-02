@@ -1,0 +1,158 @@
+[versions]
+#noinspection UnusedVersionCatalogEntry
+version-code = "1"
+#noinspection UnusedVersionCatalogEntry
+version-name = "0.1.0"
+#noinspection UnusedVersionCatalogEntry
+app-pkg = "com.grappim.wayprint"
+#noinspection UnusedVersionCatalogEntry
+app-name = "Wayprint"
+#noinspection UnusedVersionCatalogEntry
+app-vendor = "grappim"
+#noinspection UnusedVersionCatalogEntry
+app-description = "Turn a GPX track into a styled, shareable route-art image"
+#noinspection UnusedVersionCatalogEntry
+app-menugroup = "Utility"
+#noinspection UnusedVersionCatalogEntry
+app-category = "utils"
+
+#noinspection UnusedVersionCatalogEntry
+compileSdk = "37"
+#noinspection UnusedVersionCatalogEntry
+minSdk = "24"
+#noinspection UnusedVersionCatalogEntry
+targetSdk = "37"
+
+# https://github.com/detekt/detekt/releases
+detekt = "2.0.0-alpha.5"
+# https://github.com/JLLeitschuh/ktlint-gradle/releases
+ktlint = "14.2.0"
+# https://github.com/Kotlin/kotlinx-kover/releases
+kover = "0.9.9"
+# https://github.com/mrmans0n/compose-rules/releases
+composeRules = "0.6.3"
+
+# https://developer.android.com/reference/tools/gradle-api
+agp = "9.3.1"
+# https://github.com/google/desugar_jdk_libs/blob/master/CHANGELOG.md
+androidDesugarJdkLibs = "2.1.5"
+
+# https://github.com/JetBrains/kotlin/releases
+kotlin = "2.4.10"
+# https://github.com/Kotlin/kotlinx.coroutines/releases
+coroutines = "1.11.0"
+# https://github.com/Kotlin/kotlinx.collections.immutable/releases
+kotlinx-collections = "0.5.2"
+# https://github.com/Kotlin/kotlinx-datetime/releases
+kotlin-date-time = "0.8.0"
+kotlinTest = "2.4.10"
+# https://github.com/cashapp/turbine/releases
+turbine = "1.2.1"
+
+# https://github.com/InsertKoinIO/koin/releases
+koin-bom = "4.2.2"
+# https://github.com/InsertKoinIO/koin-annotations/releases
+koin-annotations = "4.2.2"
+# https://github.com/InsertKoinIO/koin-compiler-plugin
+koin-plugin = "1.1.0"
+
+# https://github.com/JetBrains/compose-multiplatform/releases
+jetbrainsComposeMultiplatform = "1.12.0"
+jetbrainsNavigationEvent = "1.1.0"
+jetbrainsComposeMaterial3 = "1.10.0-alpha05"
+jetbrainsSavedState = "1.4.0"
+jetbrainsComposeIcons = "1.7.3"
+jetbrainsAndroidxLifecycle = "2.11.0"
+# https://developer.android.com/guide/navigation/navigation-3
+jetbrainsNav3 = "1.1.1"
+
+material = "1.14.0"
+activity-compose = "1.13.0"
+core-ktx = "1.19.0"
+appcompat = "1.8.0"
+splashScreen = "1.2.0"
+
+junit4 = "4.13.2"
+
+[libraries]
+jetbrains-compose-navigationevent = { module = "org.jetbrains.androidx.navigationevent:navigationevent-compose", version.ref = "jetbrainsNavigationEvent" }
+jetbrains-compose-ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "jetbrainsComposeMultiplatform" }
+jetbrains-compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "jetbrainsComposeMultiplatform" }
+jetbrains-compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "jetbrainsComposeMultiplatform" }
+jetbrains-compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "jetbrainsComposeMultiplatform" }
+jetbrains-compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "jetbrainsComposeMultiplatform" }
+jetbrains-compose-material = { module = "org.jetbrains.compose.material:material", version.ref = "jetbrainsComposeMultiplatform" }
+jetbrains-compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "jetbrainsComposeMultiplatform" }
+jetbrains-compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "jetbrainsComposeMaterial3" }
+jetbrains-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "jetbrainsAndroidxLifecycle" }
+jetbrains-lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "jetbrainsAndroidxLifecycle" }
+jetbrains-lifecycle-viewmodelNavigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "jetbrainsAndroidxLifecycle" }
+jetbrains-navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "jetbrainsNav3" }
+jetbrains-androidx-savedstate = { module = "org.jetbrains.androidx.savedstate:savedstate", version.ref = "jetbrainsSavedState" }
+jetbrains-compose-icons = { module = "org.jetbrains.compose.material:material-icons-core", version.ref = "jetbrainsComposeIcons" }
+
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-collections = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "kotlinx-collections" }
+kotlinx-date-time = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlin-date-time" }
+
+koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin-bom" }
+koin-core = { module = "io.insert-koin:koin-core" }
+koin-core-viewmodel = { module = "io.insert-koin:koin-core-viewmodel" }
+koin-android = { module = "io.insert-koin:koin-android" }
+koin-compose = { module = "io.insert-koin:koin-compose" }
+koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel" }
+koin-annotations = { module = "io.insert-koin:koin-annotations", version.ref = "koin-annotations" }
+koin-test = { module = "io.insert-koin:koin-test" }
+koin-test-junit4 = { module = "io.insert-koin:koin-test-junit4" }
+
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
+androidx-core-splashScreen = { module = "androidx.core:core-splashscreen", version.ref = "splashScreen" }
+
+android-desugarJdkLibs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "androidDesugarJdkLibs" }
+
+material = { module = "com.google.android.material:material", version.ref = "material" }
+
+junit4 = { module = "junit:junit", version.ref = "junit4" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+
+composeRules-ktlint = { module = "io.nlopez.compose.rules:ktlint", version.ref = "composeRules" }
+composeRules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
+
+# Dependencies of the included build-logic
+android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }
+kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+compose-gradlePlugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
+compose-multiplatform-gradlePlugin = { module = "org.jetbrains.compose:compose-gradle-plugin", version.ref = "jetbrainsComposeMultiplatform" }
+detekt-gradlePlugin = { module = "dev.detekt:detekt-gradle-plugin", version.ref = "detekt" }
+ktlint-gradlePlugin = { module = "org.jlleitschuh.gradle:ktlint-gradle", version.ref = "ktlint" }
+kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlinTest" }
+kover-gradle-plugin = { module = "org.jetbrains.kotlinx:kover-gradle-plugin", version.ref = "kover" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+android-lint = { id = "com.android.lint", version.ref = "agp" }
+
+jetbrains-compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+jetbrains-compose = { id = "org.jetbrains.compose", version.ref = "jetbrainsComposeMultiplatform" }
+jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+jetbrains-kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+detekt = { id = "dev.detekt", version.ref = "detekt" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
+koin-compiler = { id = "io.insert-koin.compiler.plugin", version.ref = "koin-plugin" }
+
+# Plugins defined in the included build-logic
+wayprint-kmp-serialization = { id = "wayprint.kmp.serialization" }
+wayprint-kmp-di = { id = "wayprint.kmp.di" }
+wayprint-kmp-library = { id = "wayprint.kmp.library" }
+wayprint-kmp-library-compose = { id = "wayprint.kmp.library.compose" }
+wayprint-kmp-library-stability = { id = "wayprint.kmp.library.stability" }
+wayprint-android-application = { id = "wayprint.android.application" }

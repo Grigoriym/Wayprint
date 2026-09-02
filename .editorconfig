@@ -1,0 +1,21 @@
+root = true
+
+[*]
+indent_size = 4
+
+[*.{kt,kts}]
+ktlint_code_style=android_studio
+ktlint_function_naming_ignore_when_annotated_with = Composable, Test
+ij_kotlin_imports_layout=*,java.**,javax.**,kotlin.**,^
+ktlint_compose_lambda-param-in-effect=disabled
+ktlint_compose_multiple-emitters-check=disabled
+max_line_length = 120
+ktlint_standard_kdoc = disabled
+
+[**/generated/**]
+generated_code = true
+ij_formatter_enabled = false
+ktlint = disabled
+
+[**/testing/**]
+ktlint = disabled
