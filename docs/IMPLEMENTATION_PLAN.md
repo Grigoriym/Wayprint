@@ -118,10 +118,14 @@ sections, expanded into milestones — see `docs/CHECKLIST.md` for the step-by-s
 6. **M5** — import (file picker/share-intent) + export (`Bitmap` → `MediaStore`/share sheet)
    end-to-end.
 7. **M6** — F-Droid/Play flavors, fastlane, CI.
+8. **M7** — editable canvas: drag labels, pick a color scheme, undo, with edits persisted as a
+   draft that survives an app kill. First growth-roadmap item pulled off the backlog into an
+   actual milestone (Android-only, per the user — other platforms/aspect-ratio templates stay
+   backlog).
 
-Growth roadmap (not milestones yet, backlog only): editable canvas (drag labels, colors, aspect
-ratio, undo), more input sources (Health Connect, Strava OAuth, on-device recording — a distinct
-scope jump), multiple layout templates (poster, square, story), iOS/Desktop targets for
+Remaining growth roadmap (not milestones yet, backlog only): more input sources (Health Connect,
+Strava OAuth, on-device recording — a distinct scope jump), multiple layout templates (poster,
+square, story — includes aspect-ratio picking, deferred out of M7), iOS/Desktop targets for
 `core:gpx` and the Compose `Canvas` renderer.
 
 ## 9. Open decisions / risks
@@ -214,3 +218,22 @@ scope jump), multiple layout templates (poster, square, story), iOS/Desktop targ
     Play/F-Droid publish automation) are out of scope for all of M6 — there's no real release
     keystore or store listing to publish yet (see the first bullet above). Revisit as its own
     milestone when the app is ready to actually ship to a store.
+- **M7 editable-canvas scope** — resolved at M7 step-break-down (2026-09-02), see
+  `docs/CHECKLIST.md`'s M7 shared context for the full reasoning. Three user decisions:
+  - Aspect-ratio picking stays out of M7 — it needs multiple canvas-shape presets, which is really
+    the backlog's "multiple layout templates" item, not this one. M7 stays scoped to drag-to-
+    reposition labels, picking a color scheme, and undo, all within the existing single
+    `DEFAULT_STORY_PRESET` canvas shape.
+  - Color picking is choosing from a small fixed list of preset color schemes, not a free-form
+    picker — same "small number of fixed presets" spirit as CLAUDE.md's MVP-scope line, avoiding
+    illegible user-mixed combinations. `core:gpx`'s `dayPalette()` (ported in M1.3, unused ever
+    since — no per-day multi-track coloring exists yet) is the color source: its 5 muted hues
+    become 5 line-color variants against `DEFAULT_STORY_PRESET`'s existing fixed
+    background/text colors, giving M7 its preset list without inventing new palette values.
+  - Edits (dragged label positions, chosen color scheme) persist as a draft surviving a full app
+    kill/relaunch, not just rotation. The draft stores the *raw GPX bytes*, not the source
+    `content://` `Uri` — a share-intent-provided `Uri`'s grant often can't be persisted at all,
+    and even a file-picker `Uri`'s persisted-permission grant is an extra failure mode a raw-bytes
+    copy avoids entirely. This is what finally gives `core:storage` (deferred since M0, §4) a
+    concrete need, and pulls in `wayprint.kmp.serialization` (deferred since M0, §5) for the
+    stored draft's format.

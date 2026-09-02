@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M6.3 done — M6 (and the M0–M6 MVP roadmap) complete
+**Current step:** M7.1
 
 ## How to use this
 
@@ -1048,10 +1048,90 @@ Shared context for all of M6 (re-derive nothing below from scratch):
   green end-to-end (checkout → both debug APK assembles → `allTests` → `detekt`/`ktlintCheck` →
   Kover report upload); `gh secret list` shows all four `WAYPRINT_*_FDROID_DEBUG` secrets present.
 
+## M7 — editable canvas
+
+Drag labels to reposition them, pick a color scheme, undo — with edits persisted as a draft that
+survives an app kill. First growth-roadmap item promoted to a milestone; Android-only, aspect
+ratio deferred. Broken down below into the domain model, drag/undo, the color-scheme picker, and
+draft persistence.
+
+Shared context for all of M7 (re-derive nothing below from scratch):
+- User decision (2026-09-02, this session): aspect-ratio picking stays out of M7 — see
+  `IMPLEMENTATION_PLAN.md` §9 "M7 editable-canvas scope" for the full reasoning. M7 works within
+  the existing single `DEFAULT_STORY_PRESET` canvas shape only.
+- User decision (2026-09-02, this session): color picking is a small fixed preset list, not a
+  free-form picker. Source the list from `core:gpx`'s `dayPalette()` (ported M1.3, unused since —
+  no caller anywhere outside its own file/tests) — its 5 hues become 5 line-color variants against
+  `DEFAULT_STORY_PRESET`'s existing background/text colors, which stay fixed across every scheme.
+- User decision (2026-09-02, this session): edits persist as a draft surviving a full app kill,
+  storing the *raw GPX bytes* (not the source `content://` `Uri` — a share-intent grant often
+  isn't persistable, and even a file-picker `Uri`'s persisted-permission grant is an extra failure
+  mode raw bytes avoid). This is `core:storage`'s first concrete need (deferred since M0, §4) and
+  pulls in the `wayprint.kmp.serialization` convention plugin (deferred since M0, §5).
+- Current model shape (re-read before touching): `StoryPreset` (`feature:wayprint:domain`)
+  bundles canvas dimensions *and* the 3 hex colors into one object — M7.1 needs to split those so
+  multiple color schemes can apply to the same canvas shape. `PlacedLabel.boundingBox` already
+  exists (computed in `LabelPlacement.kt`'s private `boundingBox()`/`estimatedSize()`) — reuse
+  those for a new reposition function rather than duplicating the size estimate.
+  `WayprintViewModel.loadFromUri` currently reads the `Uri` once via `contentResolver
+  .openInputStream` and discards it; `WayprintUiState` is a flat `(isLoading, layout, error)` with
+  no edit/undo state.
+- `CanvasFit`/`fitScale` (`feature:wayprint:ui`) already computes the on-screen letterbox
+  transform (offset + scale) `WayprintCanvas` applies — a drag gesture's screen-space touch point
+  needs the inverse of that same transform to hit-test against `PlacedLabel.boundingBox` in canvas
+  space.
+- Reference: `elbe-story-actual.html`'s hand-tuned label nudges (already the model for M3.2's
+  compass candidates) has no drag/undo equivalent — this is genuinely new ground, not a port.
+
+- [ ] **M7.1** — `feature:wayprint:domain`: split `StoryPreset` into canvas-shape fields (width/
+  height/routeBox/margins) plus a `ColorScheme(backgroundColor, lineColor, textColor)`, add a
+  `PRESET_COLOR_SCHEMES` list (5 entries, `core:gpx`'s `dayPalette(5)` for `lineColor`,
+  `DEFAULT_STORY_PRESET`'s existing background/text held fixed across all 5), and a pure
+  `PlacedLabel` reposition function (e.g. `fun PlacedLabel.movedTo(x: Double, y: Double):
+  PlacedLabel`, recomputing `boundingBox` via `LabelPlacement.kt`'s existing size-estimate/
+  bounding-box logic — expose what's currently private as needed). Unit tests for the reposition
+  function and the preset list (5 entries, background/text identical across all, line colors match
+  `dayPalette(5)`'s output).
+  **Verify:** `feature:wayprint:domain`'s tests pass (`./gradlew :feature:wayprint:domain:test`),
+  `detekt`/`ktlintCheck` clean. `WayprintLayoutTest`/other existing tests still pass unmodified —
+  confirms the `StoryPreset` split didn't change `buildWayprintLayout`'s behavior.
+
+- [ ] **M7.2** — `feature:wayprint:ui`: drag-to-reposition on `WayprintCanvas` via
+  `Modifier.pointerInput`/`detectDragGestures`, inverse-transforming the drag's screen-space
+  offset through `CanvasFit`'s scale/offset to canvas space, hit-testing against each
+  `PlacedLabel.boundingBox` to pick which label is being dragged, then calling M7.1's reposition
+  function on drag. `WayprintViewModel`/`WayprintUiState` gain an in-memory undo stack (push the
+  pre-drag `WayprintLayout` before applying each drag's final position; an Undo button pops and
+  restores it) — no persistence yet, this step is drag+undo only.
+  **Verify:** emulator check (per the `emulator-testing` skill) — load a GPX, drag a label to a new
+  position, confirm the render updates live and the label stays put on drag release; tap Undo,
+  confirm it snaps back to the pre-drag position. Unit test for the undo-stack push/pop logic in
+  `WayprintViewModel` (or wherever it ends up) with hand-written fakes, no mocking library.
+
+- [ ] **M7.3** — `feature:wayprint:ui`: color-scheme picker — a row of swatches (one per
+  `PRESET_COLOR_SCHEMES` entry) in `WayprintScreen`, selecting one re-renders `WayprintCanvas`
+  with that scheme's colors. Scheme changes also push onto M7.2's undo stack.
+  **Verify:** emulator check — load a GPX, tap through each swatch, confirm the route line/
+  background/text colors update live and match the selected scheme; Undo after a scheme change
+  reverts to the previous scheme.
+
+- [ ] **M7.4** — `core:storage` module (new — `wayprint.kmp.library` +
+  `wayprint.kmp.serialization` per §5; add it to §4/§5's module tables when scaffolded): persists
+  a draft as the raw GPX bytes + the current label position overrides + the selected color-scheme
+  id, saved on every edit (debounced or on each undo-stack push) and loaded on `WayprintViewModel`
+  init if a draft exists, re-running `buildWayprintLayout` against the stored bytes and reapplying
+  the stored overrides/scheme. Decide the actual storage mechanism at this step (e.g. DataStore/
+  plain file in `filesDir` — no need for a database for one single draft).
+  **Verify:** emulator check — load a GPX, drag a label and pick a non-default color scheme, force-
+  stop the app (`adb shell am force-stop`, not just backgrounding), relaunch, confirm the draft
+  (route, dragged label position, chosen scheme) is restored exactly. Unit tests for the
+  serialize/deserialize round-trip in `core:storage`, hand-written fakes for any Android-specific
+  storage dependency.
+
 ## Backlog (growth roadmap, not milestones yet)
 
-- Editable canvas: drag labels, pick colors/aspect ratio, undo.
 - More input sources: Health Connect / Strava OAuth import; on-device live recording (its own
   milestone-scale scope jump when it happens, not an incremental add-on).
-- Multiple layout templates (poster, square post, story) once the story layout is proven.
+- Multiple layout templates (poster, square post, story) once the story layout is proven —
+  includes aspect-ratio picking, deferred out of M7.
 - iOS/Desktop targets for `core:gpx` and the Compose `Canvas` renderer.
