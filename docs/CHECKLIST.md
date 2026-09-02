@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M6.3
+**Current step:** M6.3 done — M6 (and the M0–M6 MVP roadmap) complete
 
 ## How to use this
 
@@ -1012,7 +1012,7 @@ Shared context for all of M6 (re-derive nothing below from scratch):
   whoever installs Ruby locally, or to M6.3's CI run (which installs its own toolchain in the
   GitHub Actions runner and isn't blocked by this local gap).
 
-- [ ] **M6.3** — `.github/workflows/ci.yml`: checkout, JDK 21 (`temurin`), Gradle setup
+- [x] **M6.3** — `.github/workflows/ci.yml`: checkout, JDK 21 (`temurin`), Gradle setup
   (`gradle/actions/setup-gradle`, `validate-wrappers: true`), Android SDK setup
   (`android-actions/setup-android`), restore `wayprint_fdroid_debug.jks` from a base64-encoded
   GitHub Actions secret (mirrors M6.1's local keystore), assemble `fdroidDebug` + `gplayDebug`,
@@ -1030,16 +1030,17 @@ Shared context for all of M6 (re-derive nothing below from scratch):
   and `git branch -a` confirm the actual (and only) branch/default is `master`, matching M0.1's own
   note that it deliberately set the default branch to `master` to match wallosmobile's convention;
   this step's "main" wording is stale relative to that decision.
-  Left **unticked**: per the M6.1 decision,
-  the user generates every keystore themselves, and `wayprint_fdroid_debug.jks` doesn't exist yet —
-  so the four GitHub Actions secrets this workflow restores from can't be set, and the Verify line's
-  green-run/`gh secret list` checks can't be run. Logged in `docs/revisit.md` for when the user has
-  generated the keystore and says so.
+  **Note (2026-09-02):** the user generated `wayprint_fdroid_debug.jks` (plus the release
+  `wayprint_fdroid.jks`/`wayprint_gplay.jks`, not required by this step) and set all twelve
+  `WAYPRINT_*` GitHub Actions secrets (`gh secret list` confirms `WAYPRINT_FILE_FDROID_DEBUG`,
+  `WAYPRINT_STORE_PASS_FDROID_DEBUG`, `WAYPRINT_ALIAS_FDROID_DEBUG`,
+  `WAYPRINT_KEY_PASS_FDROID_DEBUG` — this step's four — plus the eight `_FDROID`/`_GPLAY` release
+  equivalents for a future release-signing milestone). This unblocked the Verify line below; see
+  `docs/revisit.md` (entry removed) for the original blocker.
   **Verify:** push a branch (or open a PR) that trips the workflow; `gh run watch` (or the Actions
   tab) confirms a green run — checkout through Kover report all succeed, matching what
   `./gradlew build`'s local exclusions already prove passes offline. `gh secret list` confirms the
   three `WAYPRINT_*_FDROID_DEBUG` secrets plus the base64 keystore secret are present.
-  **Deferred:** blocked on the user generating `wayprint_fdroid_debug.jks` — see `docs/revisit.md`.
 
 ## Backlog (growth roadmap, not milestones yet)
 
