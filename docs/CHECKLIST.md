@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M1.1
+**Current step:** M1.2
 
 ## How to use this
 
@@ -230,15 +230,33 @@ Shared context for all of M1 (re-derive nothing below from scratch):
   reference values, and hardcode the captured output as the Kotlin test's expected values —
   don't hand-approximate them.
 
-- [ ] **M1.1** — `TrackPoint` data class (`lat`, `lon`, `ele: Double`) and GPX parsing, ported
+- [x] **M1.1** — `TrackPoint` data class (`lat`, `lon`, `ele: Double`) and GPX parsing, ported
   from `parse_track()`: read a GPX file's first `<trk>`'s `<trkseg>/<trkpt>` elements (with
   optional child `<ele>`, defaulting to `0.0` when absent, matching the Python) into
   `List<TrackPoint>`, via `javax.xml.parsers` DOM parsing (see shared context above). Establishes
   the `core:gpx` test-fixture convention (see shared context) using the `04 Riesa - Meissen.gpx`
   fixture.
-  **Verify:** a unit test parses the fixture and asserts point count and first/last point's
-  `lat`/`lon`/`ele` match `parse_track()` run on the same file. `detekt`/`ktlintCheck` pass on
-  `core:gpx`.
+  **Note:** resolved the open test-fixture-convention question (neither `wallosmobile` nor
+  `TaigaMobileNova` has one to copy — confirmed by search). Empirically verified (a probe file +
+  `processAndroidHostTestJavaRes`) that plain files under `core/gpx/src/commonTest/resources/`
+  land on the `androidHostTest` runtime classpath via ordinary `getResourceAsStream`, despite
+  `core:gpx` compiling Android-only — no extra Gradle config needed. Fixture now lives at
+  `core/gpx/src/commonTest/resources/fixtures/04 Riesa - Meissen.gpx`; later M1 steps reuse this
+  path/convention.
+  **Note:** `parseTrack` takes an `InputStream` rather than a path/`File`, since `core:gpx` is
+  pure Kotlin (no `java.io.File`-from-Android-URI coupling) and this is also what a classpath
+  fixture (`getResourceAsStream`) and a future content-resolver stream (M5) both naturally are.
+  **Note:** one deliberate deviation from a literal port: `parseTrack`'s `DocumentBuilderFactory`
+  disables DOCTYPE/external-entity resolution (XXE hardening) before parsing, which
+  `gpx_route_art.py` doesn't do. The Python script only ever runs against the author's own
+  trusted files; this exact function will parse attacker-controlled GPX files from a share-intent
+  once M5 wires up import, so the hardening was added now rather than left as a gap to remember
+  later.
+  **Note:** `Placeholder.kt` (M0.3) deleted now that `core:gpx` has real code.
+  **Verify:** `GpxParserTest` parses the fixture and asserts point count (614) and first/last
+  point's `lat`/`lon`/`ele` against `parse_track()` run on the same file via the Python reference
+  — confirmed matching (`(51.305712, 13.307704, 97.0)` first, `(51.161584, 13.47739, 105.0)`
+  last). `./gradlew :core:gpx:build` (detekt, ktlintCheck, testAndroidHostTest, kover) passes.
 
 - [ ] **M1.2** — `haversineKm(a, b)` and `rdp(points, epsilon)`, ported from `haversine_km()` and
   `rdp()` exactly as written — including that the reference's `rdp()` measures perpendicular
