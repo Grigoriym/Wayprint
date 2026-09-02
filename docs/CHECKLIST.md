@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M0.3
+**Current step:** M0.4
 
 ## How to use this
 
@@ -89,15 +89,29 @@ Ground rules (see `docs/IMPLEMENTATION_PLAN.md` for the *why* behind any of thes
   centered "Wayprint" text screen. `detekt`/`ktlintCheck` pass on `composeApp`, `androidApp`,
   `build-logic:convention`, and the root project.
 
-- [ ] **M0.3** — Empty module skeletons wired into `settings.gradle.kts`, each with only the
+- [x] **M0.3** — Empty module skeletons wired into `settings.gradle.kts`, each with only the
   convention plugins from IMPLEMENTATION_PLAN.md §5 applied and a placeholder file (no real
   code yet): `core:gpx`, `feature:wayprint:domain`, `feature:wayprint:ui`, `uikit`, `strings`,
   `testing`. Before ticking this done, resolve the `:core:logger` / `:detekt-rules` issue flagged
   in M0.1's note and IMPLEMENTATION_PLAN.md §9 — every module here applies
   `wayprint.kmp.library`, which will fail to resolve those unconditional project dependencies
   otherwise.
-  **Verify:** `./gradlew build` succeeds across the whole project with all modules present but
-  empty.
+  **Note:** the `:core:logger` / `:detekt-rules` issue was already resolved in M0.2 (confirmed
+  still fine here — every new module applies `wayprint.kmp.library`/`.compose`/`.di` cleanly).
+  **Note:** a bare `package ...`-only placeholder file trips detekt's `EmptyKotlinFile` rule
+  (`strings:detekt` failed on it first); each module's `Placeholder.kt` holds a single
+  `internal object Placeholder` instead.
+  **Note:** `./gradlew build` unmodified still fails — not from anything in this step, but from
+  M0.2's already-flagged pre-existing gap: `androidApp`'s F-Droid debug signing and both stores'
+  release signing configs point at wallosmobile-named keystores/secrets that were never set up
+  for Wayprint (M6 scope). Verified instead with
+  `./gradlew build -x :androidApp:assembleFdroidDebug -x :androidApp:assembleFdroidRelease
+  -x :androidApp:assembleGplayRelease -x :androidApp:bundleFdroidDebug
+  -x :androidApp:bundleFdroidRelease -x :androidApp:bundleGplayRelease`, which builds/checks
+  every module including all six new ones, plus `androidApp`'s gplay debug variant end to end.
+  **Verify:** `./gradlew build` (with the above exclusions for the pre-existing M6-scoped signing
+  gap) succeeds across the whole project with all six new modules present but empty; each new
+  module's `build`/`check` (detekt, ktlint, kover) also confirmed individually.
 
 - [ ] **M0.4** — Koin skeleton: `composeApp`'s `Koin.kt` with `@Module(includes = [...])
   @Configuration @ComponentScan("com.grappim.wayprint") class AppModule` and `@KoinApplication

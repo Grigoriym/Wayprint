@@ -35,5 +35,6 @@ plugins {
 }
 
 include(":androidApp", ":composeApp")
-
-// Remaining modules are declared here starting M0.3 (empty core/feature/uikit skeletons).
+include(":core:gpx")
+include(":feature:wayprint:domain", ":feature:wayprint:ui")
+include(":uikit", ":strings", ":testing")
