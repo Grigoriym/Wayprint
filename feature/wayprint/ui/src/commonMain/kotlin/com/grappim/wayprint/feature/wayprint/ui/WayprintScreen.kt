@@ -28,29 +28,32 @@ fun WayprintScreen(modifier: Modifier = Modifier, viewModel: WayprintViewModel =
         if (uri != null) viewModel.loadFromUri(uri)
     }
 
+    val layout = uiState.layout
+    val error = uiState.error
+
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        when (val state = uiState) {
-            is WayprintUiState.Empty -> Button(onClick = { pickGpx.launch("*/*") }) {
-                Text("Import GPX")
-            }
+        when {
+            uiState.isLoading -> CircularProgressIndicator()
 
-            is WayprintUiState.Loading -> CircularProgressIndicator()
-
-            is WayprintUiState.Success -> WayprintCanvas(
-                layout = state.layout,
-                preset = DEFAULT_STORY_PRESET,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            is WayprintUiState.Error -> Column(
+            error != null -> Column(
                 modifier = Modifier.padding(SCREEN_PADDING),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(SCREEN_PADDING)
             ) {
-                Text(state.message)
+                Text(error)
                 Button(onClick = { pickGpx.launch("*/*") }) {
                     Text("Retry")
                 }
+            }
+
+            layout != null -> WayprintCanvas(
+                layout = layout,
+                preset = DEFAULT_STORY_PRESET,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            else -> Button(onClick = { pickGpx.launch("*/*") }) {
+                Text("Import GPX")
             }
         }
     }

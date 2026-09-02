@@ -21,20 +21,20 @@ import org.koin.core.annotation.KoinViewModel
 @KoinViewModel
 class WayprintViewModel(private val context: Context) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<WayprintUiState>(WayprintUiState.Empty)
+    private val _uiState = MutableStateFlow(WayprintUiState())
     val uiState: StateFlow<WayprintUiState> = _uiState.asStateFlow()
 
     fun loadFromUri(uri: Uri) {
-        _uiState.value = WayprintUiState.Loading
+        _uiState.value = WayprintUiState(isLoading = true)
         viewModelScope.launch {
             _uiState.value = withContext(Dispatchers.IO) {
                 try {
                     val layout = context.contentResolver.openInputStream(uri)?.use { input ->
                         buildWayprintLayout(input)
                     } ?: error("Couldn't open $uri")
-                    WayprintUiState.Success(layout)
+                    WayprintUiState(layout = layout)
                 } catch (e: Exception) {
-                    WayprintUiState.Error(e.message ?: "Couldn't read that file")
+                    WayprintUiState(error = e.message ?: "Couldn't read that file")
                 }
             }
         }

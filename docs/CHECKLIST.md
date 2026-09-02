@@ -730,21 +730,21 @@ Shared context for all of M5 (re-derive nothing below from scratch):
   spinner; `Success` shows the existing `WayprintCanvas`; `Error` shows the message plus a retry
   button. `composeApp`'s `WayprintAppContent` becomes `WayprintTheme { WayprintScreen() }`; delete
   `DemoRoute.kt`/`DEMO_GPX` (now orphaned, see shared context).
-  **Note:** `WayprintUiState` is a `sealed interface` with exclusive `Empty`/`Loading`/
-  `Success`/`Error` variants — a real difference from `../wallosmobile`'s single-data-class,
-  boolean/nullable-flags `UiState` pattern (e.g. `CurrenciesUiState`), not an accidental drift.
-  Those screens can be in *combined* states (stale `items` shown while `isLoading`, an `error`
-  banner over existing content); `WayprintScreen`'s four states are mutually exclusive with no
-  stale-content-while-loading behavior, and this step's own text already names the four variants,
-  so a sealed hierarchy (illegal combinations unrepresentable, not just unused) is the right shape
-  here.
+  **Note:** `WayprintUiState` is one `data class` (`isLoading: Boolean = false`,
+  `layout: WayprintLayout? = null`, `error: String? = null`) rather than a sealed hierarchy —
+  first tried as a `sealed interface` with exclusive `Empty`/`Loading`/`Success`/`Error`
+  variants, but the user pushed back wanting a unified solution: `../wallosmobile`'s own
+  `UiState`s (e.g. `CurrenciesUiState`) all use this same flags-on-one-data-class shape, and
+  root `CLAUDE.md`'s reference-projects guidance is to port their patterns rather than
+  introduce a one-off. Reworked to match — `Empty` is just the all-defaults case, `WayprintScreen`
+  branches on `isLoading`/`error`/`layout` in that priority order instead of `is` checks.
   **Note:** `WayprintViewModel` takes `android.content.Context` straight in its constructor
   (Koin's `androidContext()` registers it) rather than a narrower seam, same precedent as M4/M5's
   shared context (Android-only platform types go directly in `commonMain`, not behind an
   expect/actual, since only one KMP target exists). `loadFromUri` catches any `Exception` from
   `buildWayprintLayout` (malformed XML, a non-numeric `lat`/`lon`, an empty track) and maps it to
-  `WayprintUiState.Error` — there's no narrower exception type to catch instead, since a bad GPX
-  file can fail in several unrelated ways through the parse/RDP/projection pipeline.
+  `WayprintUiState(error = ...)` — there's no narrower exception type to catch instead, since a bad
+  GPX file can fail in several unrelated ways through the parse/RDP/projection pipeline.
   **Note:** a Koin definition in one Gradle module is invisible to another module's
   `@ComponentScan`, confirmed against `../wallosmobile`'s per-feature-module pattern — added
   `WayprintUiModule` (`@Module @ComponentScan("com.grappim.wayprint.feature.wayprint.ui")`) in
