@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M1.4
+**Current step:** M2 (step-break-down)
 
 ## How to use this
 
@@ -300,14 +300,20 @@ Shared context for all of M1 (re-derive nothing below from scratch):
   (`#cea573`, `#88ce73`, `#73c5ce`, `#8773ce`, `#ce73ad`). `./gradlew :core:gpx:build` (detekt,
   ktlintCheck, testAndroidHostTest, kover) passes.
 
-- [ ] **M1.4** — Wire M1.1–M1.3 into one pipeline matching the reference's `build()`: parse →
+- [x] **M1.4** — Wire M1.1–M1.3 into one pipeline matching the reference's `build()`: parse →
   `rdp`-simplify → project, run on the M1.1 fixture at the reference's defaults
   (`epsilon=0.0006`, `box=(860, 980)`).
-  **Verify:** a unit test runs the assembled pipeline on the fixture and asserts the full
-  simplified+projected point list matches `build()`'s (or the equivalent inline call sequence's)
-  output for the same file, exactly or within a tight floating-point tolerance — the one test that
-  proves the *assembled* pipeline matches the Python reference, not just its individual pieces.
-  `./gradlew :core:gpx:build` (detekt/ktlint/kover) passes.
+  **Note:** added `RouteArt.kt`'s `buildRouteArt(input, epsilon, boxW, boxH)`, matching a single
+  track's slice of `build()`'s call sequence (`parse_track` → `rdp` → `fit_projection` → `to_svg`
+  on the same, simplified points) — `build()`'s multi-stage/`day_palette`/`towns` output is
+  outside a single-file pipeline and not part of what this step asks for.
+  **Note:** expected values captured by running `parse_track()` → `rdp(epsilon=0.0006)` →
+  `fit_projection(860, 980)` → `to_svg()` from `gpx_route_art.py` on the M1.1 fixture, hardcoded
+  as the full 51-point list in `RouteArtTest`, per CLAUDE.md's numeric-parity requirement.
+  **Verify:** `RouteArtTest` runs `buildRouteArt` on the fixture and asserts the full
+  simplified+projected point list (51 points) matches the Python reference's output for the same
+  file exactly — confirmed. `./gradlew :core:gpx:build` (detekt, ktlintCheck, testAndroidHostTest,
+  kover) passes.
 
 ## M2 — `uikit`
 
