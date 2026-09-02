@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M3.1
+**Current step:** M3.2
 
 ## How to use this
 
@@ -426,14 +426,22 @@ Shared context for all of M3 (re-derive nothing below from scratch):
   stroke halo behind label text, the same `paint-order: stroke` technique
   `elbe-story-actual.html` uses. Don't add route-line geometry to this module's overlap checks.
 
-- [ ] **M3.1** — Geometry primitives: a `Rect` (or equivalent bounding-box) type with an
+- [x] **M3.1** — Geometry primitives: a `Rect` (or equivalent bounding-box) type with an
   `overlaps(other: Rect): Boolean` check, a `TextAnchor` enum (`START`/`MIDDLE`/`END`, matching
   SVG `text-anchor` — M4 needs to know which edge of a label's box is pinned to its `x,y`), and a
   `PlacedLabel` data class (`text`, `x`, `y`, `anchor`, derived/stored bounding box). Unit tests
   cover `Rect.overlaps` edge cases (disjoint, touching-but-not-overlapping, fully contained,
   partial overlap).
+  **Note:** `Rect` stores `minX`/`minY`/`maxX`/`maxY` (matching `core:gpx`'s `Projection.toSvg`
+  SVG-space coordinates, y grows downward); `overlaps` uses strict inequalities on all four sides
+  so a shared edge counts as touching, not overlapping. `PlacedLabel.boundingBox` is a plain stored
+  `Rect` field — M3.2 is what computes it, not this step.
+  **Note:** ktlint auto-reformatted all three data classes' multi-param constructors from
+  one-param-per-line back to single-line (`ktlintCommonMainSourceSetFormat`) — matches
+  `core:gpx`'s `TrackPoint.kt` one-liner style; ran the formatter rather than hand-guessing the
+  expected layout.
   **Verify:** `./gradlew :feature:wayprint:domain:build` (detekt, ktlintCheck, testAndroidHostTest,
-  kover) passes.
+  kover) passes — confirmed.
 
 - [ ] **M3.2** — The greedy placement algorithm itself: given a label's anchor point, its text
   (for estimated bbox size — a fixed char-width-times-length approximation is fine, no real font
