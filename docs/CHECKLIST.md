@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M0.4
+**Current step:** M0.5
 
 ## How to use this
 
@@ -113,12 +113,43 @@ Ground rules (see `docs/IMPLEMENTATION_PLAN.md` for the *why* behind any of thes
   gap) succeeds across the whole project with all six new modules present but empty; each new
   module's `build`/`check` (detekt, ktlint, kover) also confirmed individually.
 
-- [ ] **M0.4** — Koin skeleton: `composeApp`'s `Koin.kt` with `@Module(includes = [...])
+- [x] **M0.4** — Koin skeleton: `composeApp`'s `Koin.kt` with `@Module(includes = [...])
   @Configuration @ComponentScan("com.grappim.wayprint") class AppModule` and `@KoinApplication
   object KoinApp`, plus `expect class PlatformComponentModule` (actual on Android). No real
   bindings yet — this just proves the DI graph initializes.
-  **Verify:** app launches without a Koin startup crash; a trivial injected placeholder class
-  resolves correctly (e.g. inject a hardcoded greeting provider into the M0.2 screen).
+  **Note:** followed TaigaMobileNova's exact shape rather than wallosmobile's (wallosmobile has
+  no `PlatformComponentModule` at all): `AppModule`'s `@ComponentScan` alone reaches every
+  definition since `composeApp` is Android-only today — no `includes` list needed yet, and
+  `PlatformComponentModule` isn't manually included in it either, same as Taiga. An explicit
+  `includes` list becomes necessary the moment a second (iOS/Desktop) target exists, since
+  `@ComponentScan` doesn't reach across an iOS Native compilation — see the doc comment on
+  `KoinGraphTest` in TaigaMobileNova for why.
+  **Note:** the "trivial injected placeholder" is `GreetingProvider` (`composeApp`'s
+  `greeting` package, `@Single`, `greeting(): String = "Wayprint"`), injected into
+  `WayprintAppContent` via `koinInject()` — the M0.2 screen's text now comes from it instead of
+  a hardcoded string, same displayed output.
+  **Note:** added `WayprintApp : Application()` in `androidApp` (`startKoin<KoinApp> {
+  androidContext(...) }`, registered as `android:name=".WayprintApp"` in the manifest) —
+  needed for M0.4's own Verify line (nothing called `startKoin` before this step) and not
+  called out as its own step in the plan, so folded in here. `androidApp/build.gradle.kts`
+  gained `koin-bom`/`koin-android`/`koin-annotations` deps for it (wallosmobile's `androidApp`
+  carries the same three, unrelated to its DI convention plugin, which only `composeApp`
+  applies).
+  **Note:** added a `KoinGraphTest` (`composeApp/src/commonTest`, wallosmobile's
+  `koin-test`/`.verify()` shape rather than Taiga's JVM-target one, since Wayprint like
+  wallosmobile is Android-only) per the "tests written in the same step as the logic they
+  cover" ground rule — `commonTest.dependencies { implementation(libs.koin.test) }` added to
+  `composeApp/build.gradle.kts`.
+  **Note:** two detekt findings surfaced and were fixed: `Koin.android.kt` renamed to
+  `PlatformComponentModule.android.kt` (`MatchingDeclarationName` — file name must match its
+  single top-level declaration); `GreetingProvider.greeting()` needed
+  `@Suppress("FunctionOnlyReturningConstant")` (deliberate hardcoded placeholder, M4 replaces
+  the call site).
+  **Verify:** `./gradlew build` (same pre-existing F-Droid-signing exclusions as M0.3) succeeds
+  project-wide; `composeApp`'s `KoinGraphTest` passes. Installed `:androidApp:assembleGplayDebug`
+  on `Medium_Phone_API_36.1`: logcat shows no `FATAL EXCEPTION`/Koin error around startup
+  (`ActivityTaskManager: Displayed ... +728ms`), and a screenshot confirms the centered
+  "Wayprint" text — now rendered via the injected `GreetingProvider`.
 
 - [ ] **M0.5** — Symlink agentic-grappim skills into `wayprint/.claude/skills/`: `finalize`,
   `update-gradle-wrapper`, `emulator-testing`, `kover-coverage-sweep`, `compose-stability-audit`,
