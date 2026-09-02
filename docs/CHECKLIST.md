@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M4.2
+**Current step:** M4.3
 
 ## How to use this
 
@@ -598,13 +598,27 @@ Shared context for all of M4 (re-derive nothing below from scratch):
   wired into any screen until M4.3; that step is where visual output first gets confirmed
   on-device, same as M2's theme/typography pieces.)
 
-- [ ] **M4.2** — Extend `WayprintCanvas` (or add to it): Start/Finish circle markers at
+- [x] **M4.2** — Extend `WayprintCanvas` (or add to it): Start/Finish circle markers at
   `WayprintLayout.path.first()`/`.last()`, and the 3 `WayprintLayout.labels` drawn with the
   halo-stroke technique (see shared context) in `StoryPreset.textColor`.
-  **Verify:** `./gradlew :feature:wayprint:ui:build` (detekt, ktlintCheck, kover) passes. No new
-  unit-testable logic beyond M4.1's (Canvas drawing itself isn't unit-testable without an
-  instrumented/Robolectric harness this project doesn't have) — visual confirmation deferred to
-  M4.3.
+  **Note:** Start marker is a hollow ring (fill `backgroundColor`, stroke `lineColor`, width 6,
+  radius 13 — the Elbe reference's own start-marker values); Finish marker is a solid filled
+  circle in `lineColor` (radius 14, the reference's finish-marker radius) — Wayprint's palette has
+  no third accent color like the reference's ochre, so hollow-vs-filled carries the Start/Finish
+  distinction instead of a color change.
+  **Note:** halo text ported via `drawContext.canvas.nativeCanvas` + two `android.graphics.Paint`s
+  (`STROKE` in `backgroundColor` drawn first, `FILL` in `textColor` drawn second, width 8/text size
+  28 — the reference's town-label halo values), per shared context; `PlacedLabel.anchor`
+  (`TextAnchor.START`/`MIDDLE`/`END`) maps directly to `Paint.Align.LEFT`/`CENTER`/`RIGHT`.
+  `PlacedLabel.y` is the domain layer's vertical *center* (`LabelPlacement.kt`'s `boundingBox`
+  computes `minY/maxY` as `y ∓ halfHeight`), not a text baseline, so the draw call offsets by
+  `textSize * 0.35` to approximate vertical centering — no exact-baseline requirement exists
+  anywhere in M3's domain model to port instead.
+  **Verify:** `./gradlew :feature:wayprint:ui:build` (detekt, ktlintCheck, kover) passes —
+  confirmed. No new unit-testable logic beyond M4.1's (Canvas drawing itself isn't unit-testable
+  without an instrumented/Robolectric harness this project doesn't have) — visual confirmation
+  deferred to M4.3. `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing exclusions)
+  passes project-wide.
 
 - [ ] **M4.3** — Wire `WayprintCanvas` into `composeApp`: `WayprintAppContent.kt`'s placeholder
   `Text(greetingProvider.greeting())` becomes `WayprintCanvas(layout =
