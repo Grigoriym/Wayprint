@@ -1037,10 +1037,16 @@ Shared context for all of M6 (re-derive nothing below from scratch):
   `WAYPRINT_KEY_PASS_FDROID_DEBUG` — this step's four — plus the eight `_FDROID`/`_GPLAY` release
   equivalents for a future release-signing milestone). This unblocked the Verify line below; see
   `docs/revisit.md` (entry removed) for the original blocker.
+  **Note:** added a `workflow_dispatch:` trigger to `ci.yml` — needed to manually re-trip the
+  workflow for this Verify (its `paths-ignore` skips both docs-only pushes and empty commits, see
+  `docs/frictions.md`).
   **Verify:** push a branch (or open a PR) that trips the workflow; `gh run watch` (or the Actions
   tab) confirms a green run — checkout through Kover report all succeed, matching what
   `./gradlew build`'s local exclusions already prove passes offline. `gh secret list` confirms the
   three `WAYPRINT_*_FDROID_DEBUG` secrets plus the base64 keystore secret are present.
+  Confirmed: run [33674771429](https://github.com/Grigoriym/Wayprint/actions/runs/33674771429)
+  green end-to-end (checkout → both debug APK assembles → `allTests` → `detekt`/`ktlintCheck` →
+  Kover report upload); `gh secret list` shows all four `WAYPRINT_*_FDROID_DEBUG` secrets present.
 
 ## Backlog (growth roadmap, not milestones yet)
 
