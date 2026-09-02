@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M1 (step-break-down not yet done — see M1 section below)
+**Current step:** M1.1
 
 ## How to use this
 
@@ -201,9 +201,75 @@ Ground rules (see `docs/IMPLEMENTATION_PLAN.md` for the *why* behind any of thes
 
 Port `gpx_route_art.py`'s parsing, RDP simplification, equirectangular projection, and
 `day_palette()` to Kotlin, with unit tests proving numeric parity against the Python reference
-on the Elbe route's GPX file. Not yet broken into steps — do that at the start of M1, once M0 is
-done and the exact Python reference has been re-read fresh (its tolerance/palette values are the
-known-good starting point per root `CLAUDE.md`).
+on the Elbe route's GPX file. Broken down below by porting the reference file's own four pieces
+(`parse_track`, `haversine_km`/`rdp`, `fit_projection`/`day_palette`) one at a time, then a
+capstone step wiring them into one pipeline and checking the whole thing against the Python
+reference — the per-piece tests alone don't prove the *assembled* pipeline matches.
+
+Shared context for all of M1 (re-derive nothing below from scratch):
+- Reference: `/home/gregory/claude/wanderwege/elbe route/scripts/gpx_route_art.py`.
+- `core:gpx` targets Android only today (`configureKmp()` adds no extra KMP targets — see
+  `build-logic/convention/.../KmpConfiguration.kt`), so `commonMain`/`commonTest` here compile
+  to JVM/Android bytecode only, same as every other module. That means JDK-standard libraries
+  (e.g. `javax.xml.parsers`) are usable from `commonMain` right now even though they wouldn't be
+  once/if an iOS target is added — a known gap, already flagged as an open KMP-target-list
+  decision in `docs/IMPLEMENTATION_PLAN.md` §9, not M1's to solve.
+- No XML library is in `gradle/libs.versions.toml`, and GPX's `<trkpt lat lon><ele>` shape is
+  simple enough that the reference script parses it with the stdlib
+  (`xml.etree.ElementTree`) rather than a dedicated GPX library. Match that: use the JDK's own
+  `javax.xml.parsers` (DOM) rather than adding a new Gradle dependency for this — simplest thing
+  that satisfies "pure Kotlin, no *Android* deps" (`javax.xml` is core Java, not `android.*`).
+- Fixture: copy one real Elbe-route GPX file into `core:gpx`'s test resources — use
+  `04 Riesa - Meissen.gpx` (the smallest, ~53KB/1857 lines, from
+  `/home/gregory/claude/wanderwege/elbe route/elberadweg - osmand/tracks/Elberadweg/`). This
+  repo has no established Android-KMP test-resource convention yet (check `../wallosmobile` for
+  the pattern, or embed the file as a `commonTest` resource under a source set detekt/ktlint
+  won't lint as Kotlin) — first step that needs it decides and the rest reuse it.
+- "Numeric parity against the Python reference" means: actually run the relevant Python
+  function(s) from `gpx_route_art.py` against the same input during the step that needs the
+  reference values, and hardcode the captured output as the Kotlin test's expected values —
+  don't hand-approximate them.
+
+- [ ] **M1.1** — `TrackPoint` data class (`lat`, `lon`, `ele: Double`) and GPX parsing, ported
+  from `parse_track()`: read a GPX file's first `<trk>`'s `<trkseg>/<trkpt>` elements (with
+  optional child `<ele>`, defaulting to `0.0` when absent, matching the Python) into
+  `List<TrackPoint>`, via `javax.xml.parsers` DOM parsing (see shared context above). Establishes
+  the `core:gpx` test-fixture convention (see shared context) using the `04 Riesa - Meissen.gpx`
+  fixture.
+  **Verify:** a unit test parses the fixture and asserts point count and first/last point's
+  `lat`/`lon`/`ele` match `parse_track()` run on the same file. `detekt`/`ktlintCheck` pass on
+  `core:gpx`.
+
+- [ ] **M1.2** — `haversineKm(a, b)` and `rdp(points, epsilon)`, ported from `haversine_km()` and
+  `rdp()` exactly as written — including that the reference's `rdp()` measures perpendicular
+  distance in raw lat/lon degrees, not via `haversine_km`, despite living next to it; port that
+  as-is rather than "fixing" it, per CLAUDE.md's instruction to port the reference, not redesign
+  it.
+  **Verify:** `haversineKm` unit-tested against a couple of the reference's own `TOWNS` coordinate
+  pairs (hand-computable). `rdp` unit-tested against (a) a small synthetic zigzag case with a
+  hand-verified expected output, and (b) the M1.1 fixture at the reference's default
+  `epsilon=0.0006`, asserting the simplified point count matches `rdp()` run on the same file at
+  the same epsilon. `detekt`/`ktlintCheck` pass.
+
+- [ ] **M1.3** — `fitProjection(points, boxW, boxH)` (mean-latitude equirectangular projection,
+  uniform scale-to-fit, `toSvg(lat, lon)`) and `dayPalette(n, hues, s, l)`, ported from
+  `fit_projection()` and `day_palette()`. `day_palette()` calls `colorsys.hls_to_rgb`, which has
+  no Kotlin stdlib equivalent — port the HLS→RGB formula itself, and watch the argument order
+  (Python's `hls_to_rgb(h, l, s)` is hue/lightness/saturation, not hue/saturation/lightness — easy
+  to transpose by mistake).
+  **Verify:** `fitProjection`/`toSvg` unit-tested by projecting the reference's `TOWNS` coordinates
+  and comparing against `to_svg()` output for the same box size. `dayPalette(5)` (the reference's
+  default hues/s/l) asserted against the exact 5 hex colors `day_palette(5)` produces.
+  `detekt`/`ktlintCheck` pass.
+
+- [ ] **M1.4** — Wire M1.1–M1.3 into one pipeline matching the reference's `build()`: parse →
+  `rdp`-simplify → project, run on the M1.1 fixture at the reference's defaults
+  (`epsilon=0.0006`, `box=(860, 980)`).
+  **Verify:** a unit test runs the assembled pipeline on the fixture and asserts the full
+  simplified+projected point list matches `build()`'s (or the equivalent inline call sequence's)
+  output for the same file, exactly or within a tight floating-point tolerance — the one test that
+  proves the *assembled* pipeline matches the Python reference, not just its individual pieces.
+  `./gradlew :core:gpx:build` (detekt/ktlint/kover) passes.
 
 ## M2 — `uikit`
 
