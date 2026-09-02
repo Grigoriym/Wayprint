@@ -1,7 +1,10 @@
 package com.grappim.wayprint.feature.wayprint.ui
 
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
@@ -37,6 +40,25 @@ class WayprintViewModel(private val context: Context) : ViewModel() {
                     WayprintUiState(error = e.message ?: "Couldn't read that file")
                 }
             }
+        }
+    }
+
+    fun exportAndShare(bitmap: Bitmap) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val imageUrl = MediaStore.Images.Media.insertImage(
+                context.contentResolver,
+                bitmap,
+                "wayprint-${System.currentTimeMillis()}",
+                null
+            ) ?: return@launch
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_STREAM, Uri.parse(imageUrl))
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(
+                Intent.createChooser(shareIntent, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
         }
     }
 }

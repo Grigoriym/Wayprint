@@ -9,6 +9,7 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":feature:wayprint:domain"))
             implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.core.ktx)
         }
     }
 }

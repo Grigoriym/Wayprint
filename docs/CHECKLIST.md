@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M5.4
+**Current step:** M6
 
 ## How to use this
 
@@ -844,16 +844,63 @@ Shared context for all of M5 (re-derive nothing below from scratch):
   kover) passes; `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing exclusions) passes
   project-wide.
 
-- [ ] **M5.4** — Save M5.3's `Bitmap` via `MediaStore.Images.Media.insertImage` (see shared
+- [x] **M5.4** — Save M5.3's `Bitmap` via `MediaStore.Images.Media.insertImage` (see shared
   context), requesting `WRITE_EXTERNAL_STORAGE` (`maxSdkVersion="28"`) only when
   `Build.VERSION.SDK_INT < 29`. Pass the resulting `content://` `Uri` to `Intent.ACTION_SEND` +
   `Intent.createChooser` for the share sheet. Wire as one action on the Export button (save-and-
   share together, matching CLAUDE.md's "saved/shared via `MediaStore`/share sheet" wording — not
   two separate buttons).
-  **Verify:** on-device — tap Export, confirm the system share sheet appears with the rendered
-  image attached (openable/selectable from it); confirm the file exists in the device's Pictures
-  collection afterward (Files app or a `MediaStore` query). Screenshot of the rendered canvas plus
-  the share sheet. `./gradlew build` (same exclusions) passes project-wide.
+  **Note:** `WayprintViewModel` gained `exportAndShare(bitmap: Bitmap)` (the natural place — it
+  already holds `context` per M5.1's precedent, and `context.contentResolver` is exactly what
+  `insertImage` needs), run on `Dispatchers.IO`: `insertImage` returns the new row's `content://`
+  `Uri` as a `String?` (`?: return@launch` if the write failed — no narrower handling than that,
+  same "no error handling for impossible scenarios" spirit as `loadFromUri`), then builds an
+  `ACTION_SEND` intent (`type = "image/png"`, `EXTRA_STREAM` = that `Uri`,
+  `FLAG_GRANT_READ_URI_PERMISSION` so the receiving app can actually read it) and starts
+  `Intent.createChooser(...)` via the held `context`. Since that `context` is the `Application`
+  instance (M0.4/M5.1's `androidContext()` registration), the chooser intent also needs
+  `FLAG_ACTIVITY_NEW_TASK` — starting an activity from a non-`Activity` `Context` requires it.
+  **Note:** the permission check/request lives in `WayprintScreen` (not the ViewModel), alongside
+  its existing `pickGpx` launcher: a `rememberLauncherForActivityResult(RequestPermission())`, a
+  `remember { mutableStateOf<Bitmap?>(null) }` holding the bitmap while the request is in flight,
+  and the Export button's `onClick` branching on `Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+  ContextCompat.checkSelfPermission(...) != PERMISSION_GRANTED` — requesting first if so, calling
+  `viewModel.exportAndShare` directly otherwise. `feature:wayprint:ui/build.gradle.kts` gained
+  `implementation(libs.androidx.core.ktx)` (already in the version catalog since M0.1's seed, not
+  previously a dependency of this module) for `ContextCompat`.
+  **Note:** M5.3's `Log.d(TAG, "Exported ...")` call (and its `TAG` constant, `android.util.Log`
+  import) is now orphaned — the bitmap it logged about is put to real use here instead of just
+  being measured — deleted per "remove what your change orphaned."
+  **Note:** `androidApp/src/main/AndroidManifest.xml` gained `<uses-permission
+  android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />` above
+  the `<application>` block — the manifest had no `<uses-permission>` entries before this step.
+  **Note:** on-device verify ran on `Medium_Phone_API_36.1` (API 36) — well above the SDK 29 cutoff
+  — so only the `SDK_INT >= 29` code path (straight to `insertImage`, no permission prompt) was
+  actually exercised. The `SDK_INT < 29` runtime-permission-request branch compiles and follows the
+  standard `ActivityResultContracts.RequestPermission()` pattern already used elsewhere in this app
+  (`pickGpx`'s `GetContent()`), but is unverified on a real pre-29 device/AVD — noted here rather
+  than claimed as confirmed, per the emulator-testing skill's own guidance not to call an
+  API-gated path verified when only tested on a modern AVD.
+  **Note:** two tooling frictions hit while proving this on-device (a mis-tapped file-picker row
+  from mixed screenshot coordinate spaces, and `content query --projection col1,col2,col3` — comma
+  syntax — rejected as an invalid column) — logged in `docs/frictions.md` rather than repeated
+  here.
+  **Verify:** on-device — installed `:androidApp:assembleGplayDebug` on `Medium_Phone_API_36.1`,
+  picked the M5.1 fixture GPX via the file picker, tapped Export: the system share sheet appeared
+  ("Sharing image", targets including Quick Share/Print/Drive/Maps/Messages) with the rendered
+  story visible behind it — screenshot confirmed. Selecting the Print target resolved to
+  `com.android.bips/.ImagePrintActivity` (confirmed via `adb logcat`'s `ActivityTaskManager`/
+  `ChooserHelper` lines), proving the granted `content://` `Uri` was actually readable by another
+  app, not just attached. `adb shell content query --uri
+  content://media/external/images/media` confirmed the saved row
+  (`_display_name=wayprint-<timestamp>.jpg`, `_data=/storage/emulated/0/Pictures/...`,
+  `resolution=1080×1920`, `mime_type=image/jpeg`, `bucket_display_name=Pictures`,
+  `owner_package_name=com.grappim.wayprint.debug`); pulling that file and opening it confirmed a
+  valid 1080×1920 RGB JPEG matching the on-screen story (background, route line, Start/Finish
+  markers, "26.2 km" label). `adb logcat -d | grep -i "FATAL EXCEPTION"` was empty across the whole
+  session. `./gradlew :feature:wayprint:ui:build` (detekt, ktlintCheck, testAndroidHostTest, kover)
+  and `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing exclusions) both pass
+  project-wide.
 
 ## M6 — distribution
 
