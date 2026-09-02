@@ -1,26 +1,19 @@
 package com.grappim.wayprint.composeapp
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.grappim.wayprint.composeapp.greeting.GreetingProvider
+import com.grappim.wayprint.feature.wayprint.domain.DEFAULT_STORY_PRESET
+import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
+import com.grappim.wayprint.feature.wayprint.ui.WayprintCanvas
 import com.grappim.wayprint.uikit.theme.WayprintTheme
-import com.grappim.wayprint.uikit.theme.screenPadding
-import org.koin.compose.koinInject
+import java.io.ByteArrayInputStream
 
-// M0.2/M0.4 placeholder — M4 replaces this with the Canvas route-art renderer.
 @Composable
-fun WayprintAppContent(modifier: Modifier = Modifier, greetingProvider: GreetingProvider = koinInject()) {
+fun WayprintAppContent(modifier: Modifier = Modifier) {
     WayprintTheme {
-        Box(
-            modifier = modifier.fillMaxSize().padding(screenPadding),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = greetingProvider.greeting())
-        }
+        val layout = remember { buildWayprintLayout(ByteArrayInputStream(DEMO_GPX.toByteArray())) }
+        WayprintCanvas(layout = layout, preset = DEFAULT_STORY_PRESET, modifier = modifier.fillMaxSize())
     }
 }

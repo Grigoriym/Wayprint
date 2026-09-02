@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M4.3
+**Current step:** M5 step-break-down
 
 ## How to use this
 
@@ -620,15 +620,53 @@ Shared context for all of M4 (re-derive nothing below from scratch):
   deferred to M4.3. `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing exclusions)
   passes project-wide.
 
-- [ ] **M4.3** — Wire `WayprintCanvas` into `composeApp`: `WayprintAppContent.kt`'s placeholder
+- [x] **M4.3** — Wire `WayprintCanvas` into `composeApp`: `WayprintAppContent.kt`'s placeholder
   `Text(greetingProvider.greeting())` becomes `WayprintCanvas(layout =
   buildWayprintLayout(demoGpxInput), preset = DEFAULT_STORY_PRESET)` (or equivalent), reading the
   demo GPX string described in shared context. Delete `GreetingProvider` and its `KoinGraphTest`
   coverage, now orphaned. Add `composeApp`'s dependency on `feature:wayprint:ui`.
+  **Note:** `composeApp/build.gradle.kts` gained `implementation(project(":feature:wayprint:ui"))`
+  and `implementation(project(":feature:wayprint:domain"))` — `WayprintAppContent.kt` calls
+  `buildWayprintLayout`/`DEFAULT_STORY_PRESET` directly, and `feature:wayprint:ui`'s own dependency
+  on `:feature:wayprint:domain` is `implementation`, not `api`, so it isn't visible transitively.
+  **Note:** the demo GPX (`composeApp`'s new `DemoRoute.kt`, `internal const val DEMO_GPX`) is a
+  6-point hand-written zigzag near Dresden (~1.2km), fed to `buildWayprintLayout` via
+  `ByteArrayInputStream`, wrapped in `remember { }` in `WayprintAppContent` so it isn't reparsed
+  every recomposition. `GreetingProvider.kt` (and its now-empty `greeting/` package) deleted;
+  `KoinGraphTest` itself needed no edit — it verifies the whole Koin module generically rather than
+  asserting on `GreetingProvider` by name, so it keeps passing with fewer definitions in the graph.
+  **Note:** `uikit`'s `screenPadding` (M2.2) is now unused — its only caller was the old
+  `WayprintAppContent` `Box.padding`, which this step's replacement content doesn't use (the canvas
+  letterboxes itself to the available space per M4's shared context; padding would just shrink that
+  space). Left in `uikit/.../Dimens.kt` rather than deleted: it lives in a module this step didn't
+  otherwise touch, and per the "leave pre-existing dead code alone — mention it instead" ground
+  rule, deleting a different M2.2-verified module's exported constant reads as cleanup beyond this
+  step's own scope.
+  **Note:** this step's own on-device Verify surfaced a real, pre-existing bug: `core:gpx`'s
+  `GpxParser.kt` (M1.1) had never actually run on a real Android runtime before now — `core:gpx`'s
+  tests all run on the JVM host test target (`testAndroidHostTest`), not an instrumented/on-device
+  target, so its `DocumentBuilderFactory`-based XXE hardening was only ever exercised against
+  desktop-JDK's Xerces implementation. On the real emulator, `parseTrack` crashed immediately:
+  Android's built-in `DocumentBuilderFactory` throws `ParserConfigurationException`/
+  `UnsupportedOperationException` on *every one* of the four hardening calls it used
+  (`setFeature("...disallow-doctype-decl", true)`, both `setFeature("...external-*-entities",
+  false)` calls, and `isXIncludeAware = false`) — confirmed by probing each individually on-device
+  before fixing. Replaced with a `DocumentBuilder.setEntityResolver { _, _ -> InputSource(empty) }`
+  override (a standard SAX/DOM mechanism, not an implementation-specific feature flag, so it works
+  identically on both platforms) plus the one property Android *does* support
+  (`isExpandEntityReferences = false`); dropped the four unsupported calls rather than wrapping them
+  in try/catch, since silently swallowing "feature not recognized" would read as hardening still in
+  effect when it plainly isn't on Android. `core:gpx`'s existing `GpxParserTest`/host-test suite
+  still passes unchanged (the fixture GPX has no DOCTYPE/entities to begin with, so this was never
+  exercising XXE protection either — just confirming basic parsing still works after the fix). No
+  `core:gpx` step is marked `[ ]` to reopen for this — M1.1 is already ticked and its own Verify line
+  (numeric parity + build passing) is unaffected; this note plus the code fix is the record.
   **Verify:** `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing exclusions) passes
-  project-wide. Installed `:androidApp:assembleGplayDebug` on the emulator: screenshot confirms
-  the full story image — background, route line, Start/Finish markers, and all 3 legible
-  (haloed) labels — replacing the old "Wayprint" placeholder text.
+  project-wide, including `core:gpx`'s full `testAndroidHostTest` suite after the `GpxParser` fix.
+  Installed `:androidApp:assembleGplayDebug` on `Medium_Phone_API_36.1`: no crash (confirmed via
+  logcat, no `FATAL EXCEPTION`), and a screenshot confirms the full story image — background, route
+  line, hollow Start / filled Finish markers, and all 3 legible (haloed) labels ("Start", "Finish",
+  "1.2 km") — replacing the old "Wayprint" placeholder text.
 
 ## M5 — import/export end-to-end
 

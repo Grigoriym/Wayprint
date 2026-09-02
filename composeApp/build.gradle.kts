@@ -8,6 +8,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":uikit"))
+            implementation(project(":feature:wayprint:domain"))
+            implementation(project(":feature:wayprint:ui"))
         }
         commonTest.dependencies {
             implementation(libs.koin.test)

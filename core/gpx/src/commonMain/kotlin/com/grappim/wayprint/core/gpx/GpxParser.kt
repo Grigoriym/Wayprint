@@ -1,7 +1,9 @@
 package com.grappim.wayprint.core.gpx
 
 import org.w3c.dom.Element
+import org.xml.sax.InputSource
 import java.io.InputStream
+import java.io.StringReader
 import javax.xml.parsers.DocumentBuilderFactory
 
 private const val GPX_NAMESPACE = "http://www.topografix.com/GPX/1/1"
@@ -31,11 +33,15 @@ fun parseTrack(input: InputStream): List<TrackPoint> {
 
 // GPX files come from a file picker / share-intent (untrusted input, M5), so entity/DTD
 // resolution is disabled here to close off XXE rather than leaving it open until that step.
+// Android's built-in DocumentBuilderFactory doesn't support the desktop-JDK feature flags this
+// used to rely on (disallow-doctype-decl, external-*-entities, XInclude) — confirmed on a real
+// device, every one throws ParserConfigurationException/UnsupportedOperationException at runtime
+// despite configuring fine on the JVM host test target. A no-op EntityResolver blocks external
+// entity resolution identically on both platforms, so that's what this relies on instead;
+// isExpandEntityReferences=false (which Android does support) still suppresses inline expansion.
 private fun newDocumentBuilder() = DocumentBuilderFactory.newInstance().apply {
     isNamespaceAware = true
-    setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
-    setFeature("http://xml.org/sax/features/external-general-entities", false)
-    setFeature("http://xml.org/sax/features/external-parameter-entities", false)
-    isXIncludeAware = false
     isExpandEntityReferences = false
-}.newDocumentBuilder()
+}.newDocumentBuilder().apply {
+    setEntityResolver { _, _ -> InputSource(StringReader("")) }
+}
