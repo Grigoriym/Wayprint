@@ -201,3 +201,16 @@ scope jump), multiple layout templates (poster, square, story), iOS/Desktop targ
     in §4 already assigns that module "import flow, export/share," and it already applies
     `wayprint.kmp.di` per §5) — `composeApp` stays a thin DI-root/shell hosting the finished screen.
     No repository/use-case layer: §4's lean-MVP module layout already ruled that structure out.
+- **M6 distribution scope** — resolved at M6 step-break-down (2026-09-02), see
+  `docs/CHECKLIST.md`'s M6 shared context for the full reasoning. Three user decisions:
+  - M6.1 renames the ported wallosmobile-named signing config to Wayprint's own (`wayprint_*.jks`,
+    `WAYPRINT_*` env vars) and fixes the *debug* F-Droid signing gap flagged since M0.2/M0.3, but
+    does not generate real `gplay`/`fdroid` **release** keystores — those are the app's permanent
+    publishing identity, deferred until the user is actually ready to publish.
+  - M6.3's `ci.yml` is a build/test/lint gate only: no Codecov upload (no Codecov project exists
+    for this repo) and no per-flavor Android/Compose lint step, unlike wallosmobile's `ci.yml`.
+  - `guardrails.yml` (wallosmobile's own commit-message tripwire convention, not Wayprint's) and
+    `release-prepare.yml`/`release.yml`/`release-finalize.yml` (version-bump + `fastlane supply`
+    Play/F-Droid publish automation) are out of scope for all of M6 — there's no real release
+    keystore or store listing to publish yet (see the first bullet above). Revisit as its own
+    milestone when the app is ready to actually ship to a store.

@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M6
+**Current step:** M6.1
 
 ## How to use this
 
@@ -905,7 +905,96 @@ Shared context for all of M5 (re-derive nothing below from scratch):
 ## M6 — distribution
 
 F-Droid/Play flavor dimension (`STORE`, `.fdroid` applicationIdSuffix), `fastlane/` skeleton
-copied and adapted, CI. Step-break-down at the start of M6.
+copied and adapted, CI. Broken down below into fixing the ported-but-still-wallosmobile-named
+signing config, the `fastlane/` metadata skeleton, and a build/test/lint CI gate.
+
+Shared context for all of M6 (re-derive nothing below from scratch):
+- The `STORE` flavor dimension (`GPLAY`/`FDROID`, `.fdroid` applicationIdSuffix) already exists —
+  ported in M0.1 as part of `AndroidApplicationConventionPlugin`
+  (`build-logic/convention/.../AppFlavors.kt`) and confirmed working since M0.2. Nothing in M6
+  needs to add or change the flavor dimension itself.
+- What M0.2/M0.3's notes flagged and deferred to M6: `AndroidApplicationConventionPlugin.kt`'s
+  `configureAppSigningConfigs()` still points at wallosmobile's own identity — keystore filenames
+  `wallos_mobile_{gplay,fdroid}.jks`/`wallos_mobile_fdroid_debug.jks` and env vars
+  `WALLOS_STORE_PASS_*`/`WALLOS_ALIAS_*`/`WALLOS_KEY_PASS_*` — never renamed for Wayprint. This is
+  why `./gradlew build` has carried `-x :androidApp:assembleFdroidDebug -x
+  :androidApp:assembleFdroidRelease -x :androidApp:assembleGplayRelease -x
+  :androidApp:bundleFdroidDebug -x :androidApp:bundleFdroidRelease -x
+  :androidApp:bundleGplayRelease` since M0.3 — every step's Verify line has been dodging the
+  wallosmobile-named signing configs those variants resolve, not a Wayprint-specific gap in the
+  variants themselves.
+- User decision (2026-09-02, this session): M6.1 renames the signing plumbing to Wayprint's own
+  names and gets `assembleFdroidDebug` building again (a debug-only identity, not sensitive — see
+  M6.1). It does **not** generate the real `gplay`/`fdroid` **release** keystores — those are the
+  app's permanent publishing identity on each store, a hard-to-reverse decision (losing or
+  mis-issuing one means the app can never be updated under that identity again) that belongs to
+  whenever the user is actually ready to publish, not to this scaffolding step. So
+  `assembleGplayRelease`/`assembleFdroidRelease`/their `bundle*` equivalents keep the same
+  exclusions after M6 that they've carried since M0.3 — M6 does not close that gap, it just stops
+  the *debug* half of it from blocking CI.
+- User decision (2026-09-02, this session): CI (M6.3) is a build/test/lint gate only — no Codecov
+  upload (would need an external Codecov account/project this repo doesn't have) and no per-flavor
+  Android/Compose lint step (`:androidApp:lintFdroidDebug`/`lintGplayDebug`), unlike
+  wallosmobile's `ci.yml`. Also out of scope for all of M6: `guardrails.yml` (a wallosmobile-
+  specific commit-message tripwire check, not a Wayprint convention) and
+  `release-prepare.yml`/`release.yml`/`release-finalize.yml` (version-bump + Play/F-Droid publish
+  automation via `fastlane supply`) — Wayprint has no real release keystore or store listing yet
+  (see the decision above), so wiring publish automation now would be exercising a pipeline with
+  nothing real to publish. Flagged in `IMPLEMENTATION_PLAN.md` §9 as future work for whenever the
+  app is actually ready to ship.
+- Reference: `../wallosmobile/.github/workflows/ci.yml`, `../wallosmobile/fastlane/` (`Fastfile`,
+  `Gemfile`, `metadata/android/en-US/`) — port the *shape*, adapt the content (package name, store
+  listing text) to Wayprint, same "reference-only, coupled to their own app" caveat as M2's shared
+  context gave for `uikit`.
+- `*.jks` is already gitignored (ported in M0.1) — no `.gitignore` change needed for M6.1's local
+  debug keystore.
+- This repo already has a GitHub remote (`github.com/Grigoriym/Wayprint`) and an authenticated
+  `gh` CLI — M6.3's CI workflow can be verified with a real Actions run, not just YAML inspection.
+
+- [ ] **M6.1** — Rename the ported signing config to Wayprint's own identity:
+  `AndroidApplicationConventionPlugin.kt`'s `configureAppSigningConfigs()` — keystore filenames
+  `wallos_mobile_${flavor.title}.jks` → `wayprint_${flavor.title}.jks`,
+  `wallos_mobile_fdroid_debug.jks` → `wayprint_fdroid_debug.jks`, and every `WALLOS_*` env var →
+  the equivalent `WAYPRINT_*` name (`WAYPRINT_STORE_PASS_$envSuffix`,
+  `WAYPRINT_ALIAS_$envSuffix`, `WAYPRINT_KEY_PASS_$envSuffix`, plus the three
+  `WAYPRINT_*_FDROID_DEBUG` ones). Generate a real local `wayprint_fdroid_debug.jks` via `keytool`
+  (self-signed, debug-only — its only job is a stable-across-builds identity for F-Droid's debug
+  channel, not a store-facing credential, same as wallosmobile's own one) and export the matching
+  `WAYPRINT_*_FDROID_DEBUG` env vars locally so `:androidApp:assembleFdroidDebug` builds. Do
+  **not** generate `wayprint_gplay.jks`/`wayprint_fdroid.jks` (real release keystores) — see shared
+  context; `assembleGplayRelease`/`assembleFdroidRelease`/their `bundle*` equivalents keep their
+  existing exclusion from `./gradlew build`.
+  **Verify:** `:androidApp:assembleFdroidDebug` succeeds locally with the new keystore/env vars (a
+  build that has been exclusion-listed since M0.3). `./gradlew build` (same M0.3-established
+  exclusions, now scoped to just the release variants per shared context) passes project-wide,
+  `detekt`/`ktlintCheck` clean on the changed convention-plugin file. `grep -ri wallos
+  build-logic/` finds nothing left in the signing config.
+
+- [ ] **M6.2** — `fastlane/` skeleton: `Fastfile` (a `test` lane running `./gradlew allTests`,
+  ported as-is from wallosmobile's — no Wayprint-specific lane needed yet), `Gemfile` (`gem
+  "fastlane"`), and `fastlane/metadata/android/en-US/` — `title.txt` ("Wayprint"),
+  `short_description.txt` and `full_description.txt` (Wayprint's own text, drawn from root
+  `CLAUDE.md`'s Concept/MVP scope — not wallosmobile's copy, adapted), `changelogs/1.txt`
+  ("Initial release."). No `images/` (screenshots/feature graphic) yet — root
+  `CLAUDE.md`/IMPLEMENTATION_PLAN.md §7 already defers those to whenever there's a real build to
+  screenshot.
+  **Verify:** `bundle exec fastlane android test` (or `fastlane android test` if fastlane is
+  installed directly) runs the `test` lane and it invokes `./gradlew allTests` successfully.
+  `short_description.txt` is ≤80 characters (F-Droid/Play's own limit) — confirmed by inspection.
+
+- [ ] **M6.3** — `.github/workflows/ci.yml`: checkout, JDK 21 (`temurin`), Gradle setup
+  (`gradle/actions/setup-gradle`, `validate-wrappers: true`), Android SDK setup
+  (`android-actions/setup-android`), restore `wayprint_fdroid_debug.jks` from a base64-encoded
+  GitHub Actions secret (mirrors M6.1's local keystore), assemble `fdroidDebug` + `gplayDebug`,
+  run `./gradlew allTests`, run `detekt`/`ktlintCheck`, generate the Kover XML report as a build
+  artifact (no Codecov upload — see shared context). Triggered on push/PR to `main`. Add the
+  actual `wayprint_fdroid_debug.jks`'s base64 contents and its three `WAYPRINT_*_FDROID_DEBUG`
+  values as GitHub Actions repo secrets (`gh secret set`) so the restore step has something to
+  restore.
+  **Verify:** push a branch (or open a PR) that trips the workflow; `gh run watch` (or the Actions
+  tab) confirms a green run — checkout through Kover report all succeed, matching what
+  `./gradlew build`'s local exclusions already prove passes offline. `gh secret list` confirms the
+  three `WAYPRINT_*_FDROID_DEBUG` secrets plus the base64 keystore secret are present.
 
 ## Backlog (growth roadmap, not milestones yet)
 
