@@ -32,4 +32,9 @@ class DraftStorage(private val directory: File) {
         val metadata = Json.decodeFromString<DraftMetadata>(metadataFile.readText())
         return Draft(gpxBytes = gpxFile.readBytes(), metadata = metadata)
     }
+
+    fun clear() {
+        gpxFile.delete()
+        metadataFile.delete()
+    }
 }

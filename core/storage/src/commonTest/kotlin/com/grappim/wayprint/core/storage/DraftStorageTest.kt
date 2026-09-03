@@ -40,4 +40,18 @@ class DraftStorageTest {
         assertTrue("second".toByteArray().contentEquals(restored.gpxBytes))
         assertEquals(1, restored.metadata.colorSchemeIndex)
     }
+
+    @Test
+    fun `save then clear then load returns null`() {
+        storage.save("draft".toByteArray(), DraftMetadata(emptyList(), colorSchemeIndex = 0))
+
+        storage.clear()
+
+        assertNull(storage.load())
+    }
+
+    @Test
+    fun `clear on an empty directory does not throw`() {
+        storage.clear()
+    }
 }

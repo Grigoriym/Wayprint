@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M8.1
+**Current step:** M8.2
 
 ## How to use this
 
@@ -1246,7 +1246,7 @@ Shared context for all of M8 (re-derive nothing below from scratch):
   a "Start over" icon action, gated on `uiState.layout != null` (mirrors how Undo/swatches/Export
   are already gated the same way, just in the `Box` below rather than the app bar).
 
-- [ ] **M8.1** — `core:storage`: `DraftStorage.clear()` — deletes `gpxFile`/`metadataFile` if
+- [x] **M8.1** — `core:storage`: `DraftStorage.clear()` — deletes `gpxFile`/`metadataFile` if
   present, a no-op if neither exists. Unit tests: save-then-clear-then-load returns `null`;
   calling `clear()` on a directory with nothing saved doesn't throw.
   **Verify:** `./gradlew :core:storage:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
