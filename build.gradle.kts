@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.jetbrains.compose) apply false
     alias(libs.plugins.jetbrains.compose.compiler) apply false
     alias(libs.plugins.jetbrains.kotlin.multiplatform) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.koin.compiler) apply false
     alias(libs.plugins.kover) apply false
 

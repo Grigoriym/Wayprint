@@ -52,6 +52,7 @@ real in them is speculative structure the CLAUDE.md instructions call out to avo
 | `androidApp` | Android entry point | thin, same role as in Taiga/wallosmobile |
 | `composeApp` | DI root, shell, nav, shared CMP entry | |
 | `core:gpx` | GPX parsing, RDP simplification, equirectangular projection, day palette | pure Kotlin, no Android deps — ported from `gpx_route_art.py` |
+| `core:storage` | persists the single in-progress draft (raw GPX bytes + label overrides + color-scheme id) | `File`-based, not `Context`-based — scaffolded in M7.4 |
 | `feature:wayprint:domain` | route model, style presets, label collision-avoidance layout | the one real "domain" concern this app has |
 | `feature:wayprint:ui` | Compose Canvas renderer, import flow, export/share | |
 | `uikit` | Theme/Colors/Dimens/Typography + a few shared widgets | built fresh for Wayprint; Taiga's/wallosmobile's `uikit` is coupled to their own feature modules |
@@ -59,7 +60,6 @@ real in them is speculative structure the CLAUDE.md instructions call out to avo
 | `testing` | hand-written fakes | no mocking library, matching wallosmobile's convention |
 
 Deferred until there's a concrete need (not scaffolded in M0):
-- `core:storage` — no persistence in MVP.
 - `core:navigation` — single-screen MVP; add when there's a second screen worth routing between.
 - `core:network` — MVP is offline; add alongside `KmpNetworkConventionPlugin` if/when Health
   Connect or Strava OAuth import lands (growth roadmap, not MVP).
@@ -72,6 +72,7 @@ Deferred until there's a concrete need (not scaffolded in M0):
 | Module | Plugins applied |
 |---|---|
 | `core:gpx` | `wayprint.kmp.library`, `wayprint.kmp.library.stability` |
+| `core:storage` | `wayprint.kmp.library`, `wayprint.kmp.serialization` |
 | `feature:wayprint:domain` | `wayprint.kmp.library`, `wayprint.kmp.library.stability` |
 | `feature:wayprint:ui` | `wayprint.kmp.library`, `wayprint.kmp.library.compose`, `wayprint.kmp.di` |
 | `uikit` | `wayprint.kmp.library`, `wayprint.kmp.library.compose` |
@@ -81,8 +82,8 @@ Deferred until there's a concrete need (not scaffolded in M0):
 | `androidApp` | `wayprint.android.application` |
 
 `wayprint.kmp.serialization` is applied only to modules that actually (de)serialize something —
-none do yet at M0/M1; add it to `core:gpx` if/when style presets move from hardcoded Kotlin to a
-serialized format.
+`core:storage` (M7.4) is the first; `core:gpx` would also need it if/when style presets move from
+hardcoded Kotlin to a serialized format.
 
 ## 6. Koin
 

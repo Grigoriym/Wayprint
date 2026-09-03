@@ -230,6 +230,7 @@ Weighed and declined — don't re-propose these.
 | Live Leaflet/OSM-tile basemap | Hand-projected pure vector/line-art rendering | Tried in the Elbe prototype; looked wrong for the story format. Don't reintroduce as the default without a fresh design discussion. |
 | Health Connect / Strava OAuth import, on-device recording | GPX file only (file picker / share-intent) | Deferred past MVP; on-device recording in particular turns this into a tracking app, a much bigger scope jump. |
 | `KmpNetworkConventionPlugin` (ported from `wallosmobile`'s `build-logic`) | Skipped entirely | No network in MVP (IMPLEMENTATION_PLAN.md §4). |
+| `Context`/DataStore-based `core:storage` (M7.4 draft persistence) | A `File`-based `DraftStorage(directory: File)`, given `context.filesDir` by its caller | Keeps `core:storage` free of any Android dependency — no DI, no fake needed for tests, matches `core:gpx`'s "pure Kotlin, no Android deps" precedent even though the module compiles Android-only today. |
 
 ## Reference projects
 

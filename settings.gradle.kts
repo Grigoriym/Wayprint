@@ -35,6 +35,6 @@ plugins {
 }
 
 include(":androidApp", ":composeApp")
-include(":core:gpx")
+include(":core:gpx", ":core:storage")
 include(":feature:wayprint:domain", ":feature:wayprint:ui")
 include(":uikit", ":strings", ":testing")

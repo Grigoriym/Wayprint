@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M7.4
+**Current step:** none — M0-M7 MVP roadmap complete; see Backlog below for what's next
 
 ## How to use this
 
@@ -1162,18 +1162,63 @@ Shared context for all of M7 (re-derive nothing below from scratch):
   selection border tracked the tapped swatch; tapped Undo after the 5th (pink) selection and it
   reverted to the 4th (purple) scheme, matching the pre-tap state — confirmed.
 
-- [ ] **M7.4** — `core:storage` module (new — `wayprint.kmp.library` +
+- [x] **M7.4** — `core:storage` module (new — `wayprint.kmp.library` +
   `wayprint.kmp.serialization` per §5; add it to §4/§5's module tables when scaffolded): persists
   a draft as the raw GPX bytes + the current label position overrides + the selected color-scheme
   id, saved on every edit (debounced or on each undo-stack push) and loaded on `WayprintViewModel`
   init if a draft exists, re-running `buildWayprintLayout` against the stored bytes and reapplying
   the stored overrides/scheme. Decide the actual storage mechanism at this step (e.g. DataStore/
   plain file in `filesDir` — no need for a database for one single draft).
-  **Verify:** emulator check — load a GPX, drag a label and pick a non-default color scheme, force-
-  stop the app (`adb shell am force-stop`, not just backgrounding), relaunch, confirm the draft
-  (route, dragged label position, chosen scheme) is restored exactly. Unit tests for the
-  serialize/deserialize round-trip in `core:storage`, hand-written fakes for any Android-specific
-  storage dependency.
+  **Note:** storage mechanism: two plain files in a directory (`DraftStorage(directory: File)`) —
+  raw GPX bytes (`wayprint-draft.gpx`) plus a `kotlinx.serialization` JSON sidecar
+  (`wayprint-draft.json`) for `DraftMetadata(labelPositions: List<LabelPosition>,
+  colorSchemeIndex: Int)` — not DataStore/a database, per this step's own "no need for a database"
+  steer. `DraftStorage` takes a `File` directory rather than an Android `Context`: the ViewModel
+  passes `context.filesDir`, so the module itself has zero Android dependency — no seam/fake was
+  needed for the "hand-written fakes for any Android-specific storage dependency" the Verify line
+  anticipated, since there's no Android-specific dependency to fake; `DraftStorageTest` exercises
+  the real class against a plain JVM temp directory.
+  **Note:** `libs.versions.toml` gained `kotlinx-serialization-json` (`1.11.0`, matching
+  wallosmobile's/Taiga's own pinned version for the same Kotlin version); root `build.gradle.kts`
+  gained `alias(libs.plugins.kotlin.serialization) apply false`, same "avoid the plugin loading
+  twice across subproject classloaders" reasoning M0.2 already established for the other `apply
+  false` plugins — `KmpSerializationConventionPlugin` (written, unused, back in M0.1) needed this
+  to actually apply for the first time.
+  **Note:** `WayprintLayout` isn't persisted directly — `DraftMetadata` only stores each label's
+  `x`/`y` (`LabelPosition`, a type `core:storage` owns, not `feature:wayprint:domain`'s
+  `PlacedLabel`/`TextAnchor`) — keeps `core:storage` a low-level module with no dependency on the
+  higher-level `feature:wayprint:domain`, matching `core:gpx`'s own layering. On restore,
+  `WayprintViewModel` reruns `buildWayprintLayout` against the stored bytes (recomputing anchors/
+  placement/bounding boxes fresh) then reapplies each stored position via `movedTo` — cheaper than
+  serializing bounding boxes too, and self-healing if placement logic ever changes.
+  **Note:** `WayprintViewModel` gained a private `draftGpxBytes: ByteArray?` field (not part of
+  `WayprintUiState`, which stays UI-relevant state only — a `ByteArray` field on a `data class`
+  would also hit Kotlin's data-class-array-equals gotcha for no benefit here). Persisted after
+  every state-changing call (`onLabelDragEnd`, `onColorSchemeSelected`, `undo`, and a successful
+  `loadFromUri`) via a private `persistDraft()` that fire-and-forgets a `viewModelScope.launch
+  (Dispatchers.IO)` — including after `undo()`, so a kill right after undoing doesn't resurrect the
+  undone edit, slightly beyond this step's own "on each undo-stack push" phrasing but consistent
+  with its "saved on every edit" framing.
+  **Note:** emulator verify's drag step needed the same temporary-`Log.d`-in-the-hit-test-path
+  technique `docs/EMULATOR_TESTING.md` already documents for M7.2 — confirmed again here that
+  `adb shell input swipe`'s synthesized touch-slop consumption makes the recognized
+  `onDragStart` position land somewhere other than the raw down point, unpredictably, so hitting
+  the label's small bounding box took a few log-guided iterations rather than one analytic
+  calculation. Generalized into `agentic-grappim`'s `emulator-testing` skill (left uncommitted for
+  review) rather than only noted here, since it applies to any Compose `detectDragGestures` target,
+  not just this app's labels.
+  **Verify:** `core:storage:testAndroidHostTest` (`DraftStorageTest`: null-when-nothing-saved,
+  round-trip round-trips gpx bytes + metadata exactly, a second save overwrites rather than
+  appends) passes; `detekt`/`ktlintCheck` clean on `core:storage` and `feature:wayprint:ui` —
+  confirmed. `./gradlew build` (same pre-existing M0.3/M0.4 F-Droid-signing exclusions) passes
+  project-wide. Emulator check (`Medium_Phone_API_36.1`, `gplay` debug build,
+  `feature:wayprint:domain`'s `04 Riesa - Meissen.gpx` fixture): imported the GPX, selected the
+  4th (purple) color scheme, dragged the "26.2 km" distance label to a new position, force-stopped
+  the app (`adb shell am force-stop`, not just backgrounding), relaunched — the route loaded
+  automatically with no Import-GPX prompt, the purple scheme was still selected, and the label was
+  at the exact same dragged position — confirmed via before/after screenshots. Also confirmed the
+  scheme-only case restores correctly on its own (reinstalling the APK mid-flow, before ever
+  dragging, still force-stopped+relaunched with the purple scheme intact).
 
 ## Backlog (growth roadmap, not milestones yet)
 

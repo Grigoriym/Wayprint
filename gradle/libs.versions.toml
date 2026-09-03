@@ -45,6 +45,8 @@ coroutines = "1.11.0"
 kotlinx-collections = "0.5.2"
 # https://github.com/Kotlin/kotlinx-datetime/releases
 kotlin-date-time = "0.8.0"
+# https://github.com/Kotlin/kotlinx.serialization/releases
+kotlinx-serialization-json = "1.11.0"
 kotlinTest = "2.4.10"
 # https://github.com/cashapp/turbine/releases
 turbine = "1.2.1"
@@ -96,6 +98,7 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-collections = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "kotlinx-collections" }
 kotlinx-date-time = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlin-date-time" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
 
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin-bom" }
 koin-core = { module = "io.insert-koin:koin-core" }
