@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import com.grappim.wayprint.feature.wayprint.domain.ColorScheme
 import com.grappim.wayprint.feature.wayprint.domain.StoryPreset
 import com.grappim.wayprint.feature.wayprint.domain.TextAnchor
@@ -35,6 +36,7 @@ private const val MARKER_STROKE_WIDTH = 6f
 private const val LABEL_TEXT_SIZE = 28f
 private const val LABEL_HALO_WIDTH = 8f
 private const val LABEL_BASELINE_OFFSET_FACTOR = 0.35f
+private val MIN_LABEL_TOUCH_TARGET = 48.dp
 
 /**
  * Letterboxes [layout]/[preset] into the composable's actual on-screen size via [fitScale], then
@@ -62,6 +64,8 @@ fun WayprintCanvas(
             var draggedIndex = -1
             var x = 0.0
             var y = 0.0
+            val touchTestPaint = Paint().apply { textSize = LABEL_TEXT_SIZE }
+            val minTouchTargetPx = MIN_LABEL_TOUCH_TARGET.toPx()
 
             fun currentFit() =
                 fitScale(preset.canvasWidth, preset.canvasHeight, size.width.toDouble(), size.height.toDouble())
@@ -71,7 +75,19 @@ fun WayprintCanvas(
                     val fit = currentFit()
                     val canvasX = (start.x - fit.offsetX) / fit.scale
                     val canvasY = (start.y - fit.offsetY) / fit.scale
-                    draggedIndex = currentLayout.labels.indexOfLast { it.boundingBox.contains(canvasX, canvasY) }
+                    val minSize = minTouchTargetPx / fit.scale
+                    draggedIndex = currentLayout.labels.indexOfLast { label ->
+                        val metrics = touchTestPaint.fontMetrics
+                        val touchRect = labelTouchRect(
+                            x = label.x,
+                            y = label.y,
+                            anchor = label.anchor,
+                            textWidth = touchTestPaint.measureText(label.text).toDouble(),
+                            textHeight = (metrics.descent - metrics.ascent).toDouble(),
+                            minSize = minSize
+                        )
+                        touchRect.contains(canvasX, canvasY)
+                    }
                     if (draggedIndex >= 0) {
                         val label = currentLayout.labels[draggedIndex]
                         x = label.x
