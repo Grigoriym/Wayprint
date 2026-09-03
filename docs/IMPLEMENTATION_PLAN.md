@@ -52,7 +52,8 @@ real in them is speculative structure the CLAUDE.md instructions call out to avo
 | `androidApp` | Android entry point | thin, same role as in Taiga/wallosmobile |
 | `composeApp` | DI root, shell, nav, shared CMP entry | |
 | `core:gpx` | GPX parsing, RDP simplification, equirectangular projection, day palette | pure Kotlin, no Android deps — ported from `gpx_route_art.py` |
-| `core:storage` | persists the single in-progress draft (raw GPX bytes + label overrides + color-scheme id) | `File`-based, not `Context`-based — scaffolded in M7.4 |
+| `core:storage` | persists saved tracks (raw GPX bytes + label overrides + color-scheme id + display name/date/distance), one per id | `File`-based, not `Context`-based — scaffolded in M7.4 as a single draft, generalized to N tracks in M9.2 |
+| `core:navigation` | `Navigator`/`NavigationState`/`toEntries` — the back-stack shell every screen navigates through | scaffolded in M9.1, ported from `../wallosmobile`; single-section (no drawer) shape |
 | `feature:wayprint:domain` | route model, style presets, label collision-avoidance layout | the one real "domain" concern this app has |
 | `feature:wayprint:ui` | Compose Canvas renderer, import flow, export/share | |
 | `uikit` | Theme/Colors/Dimens/Typography + a few shared widgets | built fresh for Wayprint; Taiga's/wallosmobile's `uikit` is coupled to their own feature modules |
@@ -60,7 +61,6 @@ real in them is speculative structure the CLAUDE.md instructions call out to avo
 | `testing` | hand-written fakes | no mocking library, matching wallosmobile's convention |
 
 Deferred until there's a concrete need (not scaffolded in M0):
-- `core:navigation` — single-screen MVP; add when there's a second screen worth routing between.
 - `core:network` — MVP is offline; add alongside `KmpNetworkConventionPlugin` if/when Health
   Connect or Strava OAuth import lands (growth roadmap, not MVP).
 - `benchmark` — the `android-baseline-profile` skill covers this when there's a cold-start path
@@ -73,8 +73,9 @@ Deferred until there's a concrete need (not scaffolded in M0):
 |---|---|
 | `core:gpx` | `wayprint.kmp.library`, `wayprint.kmp.library.stability` |
 | `core:storage` | `wayprint.kmp.library`, `wayprint.kmp.serialization` |
+| `core:navigation` | `wayprint.kmp.library`, `wayprint.kmp.library.compose` |
 | `feature:wayprint:domain` | `wayprint.kmp.library`, `wayprint.kmp.library.stability` |
-| `feature:wayprint:ui` | `wayprint.kmp.library`, `wayprint.kmp.library.compose`, `wayprint.kmp.di` |
+| `feature:wayprint:ui` | `wayprint.kmp.library`, `wayprint.kmp.library.compose`, `wayprint.kmp.di`, `wayprint.kmp.serialization` (from M9 — its `NavKey` routes are `@Serializable`) |
 | `uikit` | `wayprint.kmp.library`, `wayprint.kmp.library.compose` |
 | `strings` | `wayprint.kmp.library`, `wayprint.kmp.library.compose` (CMP string resources need the compose resource pipeline) |
 | `testing` | `wayprint.kmp.library` |
@@ -127,12 +128,17 @@ sections, expanded into milestones — see `docs/CHECKLIST.md` for the step-by-s
    screen, with a confirmation dialog first (no undo across a draft clear). Second
    growth-roadmap/backlog item pulled into a milestone, from a user-reported gap after M7.4
    shipped persisted drafts.
+10. **M9** — recent tracks: a tracks list start screen replacing the single-draft model, so every
+    GPX import is saved as its own track instead of overwriting the one draft. Introduces
+    `core:navigation` (deferred since M0 for exactly this trigger — the app's first second
+    screen) and generalizes `core:storage`'s `DraftStorage` into a keyed `TracksStorage`. Third
+    growth-roadmap/backlog item pulled into a milestone; supersedes M8's "Start over" action
+    (see `docs/CHECKLIST.md`'s M9 shared context).
 
 Remaining growth roadmap (not milestones yet, backlog only): more input sources (Health Connect,
 Strava OAuth, on-device recording — a distinct scope jump), multiple layout templates (poster,
 square, story — includes aspect-ratio picking, deferred out of M7), iOS/Desktop targets for
-`core:gpx` and the Compose `Canvas` renderer, a recent-tracks list (moving past the single-draft
-model, implies real navigation), combining multiple GPX tracks into one image.
+`core:gpx` and the Compose `Canvas` renderer, combining multiple GPX tracks into one image.
 
 ## 9. Open decisions / risks
 
@@ -248,3 +254,10 @@ model, implies real navigation), combining multiple GPX tracks into one image.
   confirms first (a dialog) rather than discarding the draft immediately on tap, since a draft
   clear has no undo. Stays within the existing single-draft model — saving the discarded draft
   somewhere (a recent-tracks list) is a separate, unscoped backlog item, not part of M8.
+- **M9 recent-tracks scope** — resolved at M9 step-break-down (2026-09-03), see
+  `docs/CHECKLIST.md`'s M9 shared context for the full reasoning. Four user decisions: every
+  import auto-saves (no explicit "Save" step); M8's confirm-then-clear "Start over" is replaced
+  outright by plain back-navigation to the tracks list (no longer destructive, since the track is
+  already saved); the list is uncapped, manual delete only (with its own confirm dialog, the
+  destructive action M8's used to be); the pre-M9 single draft file on disk is not migrated —
+  dropped, since the app has no released users yet.

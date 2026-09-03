@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** none — M0-M8 complete, see Backlog below for growth-roadmap items
+**Current step:** M9.1
 
 ## How to use this
 
@@ -1265,6 +1265,133 @@ Shared context for all of M8 (re-derive nothing below from scratch):
   Note: `Icons.Filled.RestartAlt` isn't in `material-icons-core` (the only icons artifact this
   project depends on, see `KmpCompose.kt`) — used `Icons.Filled.Refresh` instead, which is.
 
+## M9 — recent tracks
+
+A tracks list on a new start screen, replacing the single-draft model: every GPX import is saved
+as its own track rather than overwriting the one draft `DraftStorage` (M7.4) held, with a list to
+reopen or delete any of them. Third growth-roadmap/backlog item promoted to a milestone
+(2026-09-03, user-reported gap: the single-draft model meant only ever one track could exist at a
+time). This is the trigger IMPLEMENTATION_PLAN.md §4 already named for `core:navigation` ("add
+when there's a second screen worth routing between") — the app goes from one screen to two.
+
+Shared context for all of M9 (re-derive nothing below from scratch):
+
+- User decisions (2026-09-03, this session):
+  - Every successful GPX import is saved immediately — no separate "Save" step, matching M7.4's
+    existing auto-persist-on-edit behavior just generalized from one draft to N tracks.
+  - M8's "Start over" (confirm-then-clear-then-return-to-import) goes away entirely. Since the
+    open track is already saved, leaving it is just navigation, not data loss — no confirmation
+    dialog needed for it any more. `WayprintScreen`'s top-bar icon action and its `AlertDialog`
+    (M8.2) are removed outright, replaced by an ordinary back-arrow `navigationIcon` that
+    navigates back to the tracks list.
+  - The list has no cap — one file pair per track, kept until the user deletes it. Deleting a
+    track is its own destructive, irreversible action and gets its own confirm dialog (same
+    reasoning M8 used for the draft clear it's replacing), on the track's row.
+  - The M7.4/M8-era single draft file sitting on disk is not migrated — the app has no released
+    users yet (release CI is explicitly deferred, see IMPLEMENTATION_PLAN.md §9's M6 note), so the
+    only "data" at stake is dev-time state that costs nothing to re-import. `TracksStorage` (see
+    M9.2) starts from an empty store; the old `wayprint-draft.gpx`/`wayprint-draft.json` files are
+    simply orphaned/ignored on disk.
+- Navigation shape: port `core:navigation` from `../wallosmobile` (Android-only KMP precedent, per
+  root CLAUDE.md) — `Navigator`/`NavigationState`/`toEntries`, `NavKey`-typed routes, an
+  `EntryProviderScope<NavKey>` extension per feature wiring route↔screen with navigation
+  *callbacks* (screens take `onXClick: (...) -> Unit` lambdas, never a `Navigator` reference
+  directly — the entry-provider file is the only place that knows both a route and its screen).
+  Wayprint has no drawer, so only the reusable core module gets ported (`Navigator`/
+  `NavigationState`/`toEntries` — generic, not drawer-specific); wallosmobile's drawer-only
+  app-shell scaffolding (`DrawerDestination`, `RouteConfig`, `MainAppState`) is not needed and is
+  not ported. `topLevelKeys` is a single-element set (`setOf(RecentsRoute)`) — the dual
+  top-level/sub-stack shape degenerates to one stack with no second section to switch to, but
+  keeps the exact same class shape as the reference projects rather than a locally-simpler
+  one-off, per CLAUDE.md's instruction to port reference-project patterns rather than reinvent.
+- Module/package layout:
+  - New `core:navigation` module (`wayprint.kmp.library` + `wayprint.kmp.library.compose` only,
+    matching wallosmobile's `core/navigation/build.gradle.kts` exactly — everything it needs
+    already comes from `KmpCompose.kt`'s `jetbrains.navigation3.ui`/
+    `jetbrains.lifecycle.viewmodelNavigation3`/`jetbrains.androidx.savedstate` deps). Add to
+    `settings.gradle.kts` and move it out of IMPLEMENTATION_PLAN.md §4's "deferred" list into the
+    main module table (§4/§5) — it's been named there as the trigger for exactly this milestone.
+  - `feature:wayprint:ui` gains a `wayprint.kmp.serialization` plugin alias (its routes are
+    `@Serializable NavKey`s the shell serializes into the back stack) — same one-line reasoning
+    wallosmobile's `feature:subscriptions:ui/build.gradle.kts` documents for the same situation.
+  - Existing `WayprintScreen`/`WayprintViewModel`/`WayprintUiState` (+ their tests) move into a new
+    `edit/` subpackage; a new `list/` subpackage holds the new screen — mirrors wallosmobile
+    feature modules' `list/`/`detail/`/`editor/` subpackage convention. `WayprintCanvas.kt`/
+    `CanvasFit.kt`/`LabelTouchTarget.kt` stay at the module's top level (shared rendering helpers,
+    not screen-specific).
+  - A route argument reaches its `@KoinViewModel` via `@InjectedParam` + `koinViewModel {
+    parametersOf(id) }` at the entry-provider call site — Koin's `verify()` whitelists `String` the
+    same way wallosmobile's `SubscriptionDetailViewModel` documents for `Int`; confirm this holds
+    (no `KoinGraphTest` `EXTERNALLY_SUPPLIED` change needed) rather than assuming it.
+- Storage generalization (`core:storage`): `DraftStorage`/`DraftMetadata`/`Draft` are renamed to
+  `TracksStorage`/`TrackMetadata`/`Track`, keyed by a track id (`System.currentTimeMillis()
+  .toString()` — good enough for offline, user-paced, single-device imports; no UUID dependency
+  needed). One subdirectory per track (`directory/<id>/track.gpx` + `directory/<id>/
+  metadata.json`) rather than the old two-fixed-filename layout, so `delete(id)` is a single
+  `File(directory, id).deleteRecursively()`. `TrackMetadata` gains `displayName: String`,
+  `importedAtEpochMillis: Long`, and `distanceKm: Double` (all needed for the list row — the
+  existing `labelPositions`/`colorSchemeIndex` fields carry over unchanged). `clear()` is removed
+  outright, superseded by `delete(id)`; `save`/`load` become `save(id, ...)`/`load(id)`; `list()`
+  returns `List<TrackSummary>` (id + `TrackMetadata`, cheap — no GPX bytes) sorted newest-first by
+  `importedAtEpochMillis`.
+- Display name: resolved in `RecentsViewModel` (which holds a `Context`, same precedent as
+  `WayprintViewModel`) via `context.contentResolver.query(uri, ...)` reading
+  `OpenableColumns.DISPLAY_NAME` on the picked `Uri`, falling back to `"Untitled route"` when the
+  column is null/unresolvable (a share-intent `Uri` in particular isn't guaranteed to have one).
+- Both screens keep the project's existing plain-`Text("...")`-literal convention — the `strings`
+  module isn't wired into actual screen copy anywhere yet, so this doesn't introduce a new pattern
+  mid-feature.
+
+- [ ] **M9.1** — new `core:navigation` module: port `Navigator`, `NavigationState`, and
+  `toEntries` from `../wallosmobile`'s `core:navigation` (single-section shape — no drawer,
+  `topLevelKeys` always a one-element set), plus its `NavigatorTest`.
+  **Verify:** `./gradlew :core:navigation:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+
+- [ ] **M9.2** — `core:storage`: generalize `DraftStorage` into `TracksStorage` per the shared
+  context above (`Track`/`TrackMetadata`/`TrackSummary`, per-track subdirectory, `save(id, ...)`/
+  `load(id)`/`list()`/`delete(id)`). Unit tests: save-then-load round-trips a track exactly;
+  `list()` returns every saved track's summary, newest first; `delete(id)` removes only the
+  targeted track (a second saved track survives untouched); `load`/`delete` on an unknown id
+  return `null`/no-op rather than throwing.
+  **Verify:** `./gradlew :core:storage:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+
+- [ ] **M9.3** — `feature:wayprint:ui`: move `WayprintScreen`/`WayprintViewModel`/
+  `WayprintUiState` into `edit/`, add `edit.WayprintEditRoute(val trackId: String) : NavKey`.
+  `WayprintViewModel` takes `trackId` via `@InjectedParam`, loads that one track from
+  `TracksStorage` (replacing `restoreDraft()`'s implicit single-draft load) and saves edits back
+  under the same id (replacing `persistDraft()`). Remove M8's "Start over" icon action and its
+  `AlertDialog` outright; `WayprintScreen` gains a required `onBackClick: () -> Unit` wired to a
+  standard back-arrow `navigationIcon` on the existing `CenterAlignedTopAppBar`.
+  **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+
+- [ ] **M9.4** — `feature:wayprint:ui`: new `list/` subpackage — `list.RecentsRoute : NavKey` (no
+  payload), `RecentsScreen` (empty state with the "Import GPX" action, moved from the old
+  `WayprintScreen` empty branch; otherwise a list of tracks showing name/date/distance, each row
+  opening it via `onTrackClick(id)` and offering a delete action that confirms via `AlertDialog`
+  before calling `onDeleteClick(id)`), `RecentsViewModel` (lists tracks from `TracksStorage`;
+  `importGpx(uri)` parses the GPX same as today's `WayprintViewModel.loadFromUri`, resolves the
+  display name per the shared context above, generates a new id, saves the track, and emits the
+  new id as a one-shot event for the caller to navigate on; `deleteTrack(id)`).
+  **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+
+- [ ] **M9.5** — `composeApp`: wire it together — `nav/NavKeySerializers.kt`
+  (`navKeySerializersModule`/`navSavedStateConfiguration` listing `RecentsRoute` and
+  `WayprintEditRoute`), `nav/entries/WayprintEntryProvider.kt` (the one place that knows both
+  routes and both screens, wiring the screens' navigation callbacks to `navigator.navigate(...)`/
+  `navigator.goBack()`), `nav/WayprintNavHost.kt` (`NavDisplay`, matching wallosmobile's
+  `MainNavHost` shape). `WayprintAppContent.kt` builds a `NavigationState` (`startKey =
+  RecentsRoute`) and renders `WayprintNavHost` instead of calling `WayprintScreen()` directly.
+  **Verify:** `./gradlew :composeApp:testAndroidHostTest` (`KoinGraphTest` picks up
+  `RecentsViewModel`/updated `WayprintViewModel` via the existing `@ComponentScan` — no new Koin
+  wiring needed), `detekt`, `ktlintCheck` pass; `./gradlew build` (same pre-existing
+  F-Droid-signing exclusions) passes project-wide. Emulator check (`emulator-testing` skill):
+  import two different GPX fixtures from Recents — both appear in the list with correct name/date/
+  distance; open one, drag a label and pick a color scheme, back-arrow to Recents — no confirm
+  dialog, the edit is intact when reopened; delete the other track — confirm dialog appears,
+  confirming removes only that row; force-stop and relaunch — the list still shows the remaining
+  track (multi-track persistence survives process death, not just the old single-draft case
+  M7.4/M8 already covered).
+
 ## Backlog (growth roadmap, not milestones yet)
 
 - More input sources: Health Connect / Strava OAuth import; on-device live recording (its own
@@ -1272,13 +1399,6 @@ Shared context for all of M8 (re-derive nothing below from scratch):
 - Multiple layout templates (poster, square post, story) once the story layout is proven —
   includes aspect-ratio picking, deferred out of M7.
 - iOS/Desktop targets for `core:gpx` and the Compose `Canvas` renderer.
-- A recent-tracks list (2026-09-03, user-reported): implies moving past M7.4's single-draft
-  model to multiple saved routes, which in turn implies real navigation — more than one screen
-  (a home/recents list, the canvas/edit screen, maybe settings) needing `core:navigation`
-  (deferred since M0, §4 — "add when there's a second screen worth routing between"; this would
-  be that trigger). Open question, not designed yet: what a "recent" even is here (every past
-  import? only explicitly saved ones?) and what the navigation shape should look like — a
-  step-break-down of its own once picked up, not a small addition.
 - Combining several GPX tracks into one image (2026-09-03, user-reported): open design
   question, not scoped. `dayPalette()` (`core:gpx`, ported M1.3) already exists for per-track/
   per-day coloring and has never had a caller — this is the feature that would finally use it.
