@@ -22,10 +22,10 @@ class WayprintUiStateTest {
     private val layout = WayprintLayout(path = emptyList(), totalDistanceKm = 1.0, labels = listOf(label))
 
     @Test
-    fun `dragStarted remembers the current layout as the pre-drag snapshot`() {
-        val state = WayprintUiState(layout = layout).dragStarted()
+    fun `dragStarted remembers the current layout and scheme as the pre-drag snapshot`() {
+        val state = WayprintUiState(layout = layout, colorSchemeIndex = 2).dragStarted()
 
-        assertEquals(layout, state.dragStartLayout)
+        assertEquals(EditSnapshot(layout, colorSchemeIndex = 2), state.dragStartSnapshot)
     }
 
     @Test
@@ -42,9 +42,9 @@ class WayprintUiStateTest {
 
         val state = dragged.dragEnded()
 
-        assertEquals(listOf(layout), state.undoStack)
+        assertEquals(listOf(EditSnapshot(layout, colorSchemeIndex = 0)), state.undoStack)
         assertTrue(state.canUndo)
-        assertNull(state.dragStartLayout)
+        assertNull(state.dragStartSnapshot)
     }
 
     @Test
@@ -52,7 +52,7 @@ class WayprintUiStateTest {
         val state = WayprintUiState(layout = layout).dragEnded()
 
         assertFalse(state.canUndo)
-        assertNull(state.dragStartLayout)
+        assertNull(state.dragStartSnapshot)
     }
 
     @Test
@@ -71,6 +71,24 @@ class WayprintUiStateTest {
         val state = WayprintUiState(layout = layout).undone()
 
         assertEquals(layout, state.layout)
+        assertFalse(state.canUndo)
+    }
+
+    @Test
+    fun `colorSchemeSelected pushes the pre-change snapshot and updates the index`() {
+        val state = WayprintUiState(layout = layout, colorSchemeIndex = 0).colorSchemeSelected(3)
+
+        assertEquals(3, state.colorSchemeIndex)
+        assertEquals(listOf(EditSnapshot(layout, colorSchemeIndex = 0)), state.undoStack)
+    }
+
+    @Test
+    fun `undone after a scheme change restores the previous scheme`() {
+        val afterSelect = WayprintUiState(layout = layout, colorSchemeIndex = 0).colorSchemeSelected(3)
+
+        val state = afterSelect.undone()
+
+        assertEquals(0, state.colorSchemeIndex)
         assertFalse(state.canUndo)
     }
 }

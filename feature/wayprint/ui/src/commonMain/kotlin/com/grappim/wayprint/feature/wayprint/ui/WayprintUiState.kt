@@ -12,14 +12,21 @@ data class WayprintUiState(
     val isLoading: Boolean = false,
     val layout: WayprintLayout? = null,
     val error: String? = null,
-    val undoStack: List<WayprintLayout> = emptyList(),
-    val dragStartLayout: WayprintLayout? = null
+    val colorSchemeIndex: Int = 0,
+    val undoStack: List<EditSnapshot> = emptyList(),
+    val dragStartSnapshot: EditSnapshot? = null
 ) {
     val canUndo: Boolean get() = undoStack.isNotEmpty()
 }
 
-/** Remembers [WayprintUiState.layout] as the pre-drag snapshot a drag gesture may later undo. */
-fun WayprintUiState.dragStarted(): WayprintUiState = copy(dragStartLayout = layout)
+/** One undoable edit's pre-change state: both the layout and the color-scheme selection. */
+data class EditSnapshot(val layout: WayprintLayout, val colorSchemeIndex: Int)
+
+/** Remembers the current layout/scheme as the pre-drag snapshot a drag gesture may later undo. */
+fun WayprintUiState.dragStarted(): WayprintUiState {
+    val current = layout ?: return this
+    return copy(dragStartSnapshot = EditSnapshot(current, colorSchemeIndex))
+}
 
 /** Moves the label at [index] to ([x], [y]) for live feedback while a drag is in progress. */
 fun WayprintUiState.labelMoved(index: Int, x: Double, y: Double): WayprintUiState {
@@ -30,12 +37,22 @@ fun WayprintUiState.labelMoved(index: Int, x: Double, y: Double): WayprintUiStat
 
 /** Ends a drag gesture, pushing the pre-drag snapshot captured by [dragStarted] onto the undo stack. */
 fun WayprintUiState.dragEnded(): WayprintUiState {
-    val preDrag = dragStartLayout ?: return this
-    return copy(undoStack = undoStack + preDrag, dragStartLayout = null)
+    val preDrag = dragStartSnapshot ?: return this
+    return copy(undoStack = undoStack + preDrag, dragStartSnapshot = null)
 }
 
-/** Pops the most recent undo-stack entry, restoring it as the current layout. */
+/** Selects color scheme [index], pushing the pre-change snapshot onto the undo stack. */
+fun WayprintUiState.colorSchemeSelected(index: Int): WayprintUiState {
+    val current = layout ?: return this
+    return copy(undoStack = undoStack + EditSnapshot(current, colorSchemeIndex), colorSchemeIndex = index)
+}
+
+/** Pops the most recent undo-stack entry, restoring it as the current layout/scheme. */
 fun WayprintUiState.undone(): WayprintUiState {
     val previous = undoStack.lastOrNull() ?: return this
-    return copy(layout = previous, undoStack = undoStack.dropLast(1))
+    return copy(
+        layout = previous.layout,
+        colorSchemeIndex = previous.colorSchemeIndex,
+        undoStack = undoStack.dropLast(1)
+    )
 }

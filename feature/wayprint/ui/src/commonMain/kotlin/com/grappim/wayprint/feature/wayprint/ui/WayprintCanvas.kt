@@ -207,7 +207,7 @@ private fun TextAnchor.toPaintAlign(): Paint.Align = when (this) {
     TextAnchor.END -> Paint.Align.RIGHT
 }
 
-private fun parseHexColor(hex: String): Color {
+fun parseHexColor(hex: String): Color {
     val rgb = hex.removePrefix("#").toLong(radix = 16)
     return Color(color = 0xFF000000 or rgb)
 }

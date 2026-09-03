@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M7.3
+**Current step:** M7.4
 
 ## How to use this
 
@@ -1138,12 +1138,29 @@ Shared context for all of M7 (re-derive nothing below from scratch):
   rendered text) and `docs/EMULATOR_TESTING.md` for the coordinate-math gotcha that made it hard to
   verify by eyeballing screenshots alone.
 
-- [ ] **M7.3** — `feature:wayprint:ui`: color-scheme picker — a row of swatches (one per
+- [x] **M7.3** — `feature:wayprint:ui`: color-scheme picker — a row of swatches (one per
   `PRESET_COLOR_SCHEMES` entry) in `WayprintScreen`, selecting one re-renders `WayprintCanvas`
   with that scheme's colors. Scheme changes also push onto M7.2's undo stack.
-  **Verify:** emulator check — load a GPX, tap through each swatch, confirm the route line/
-  background/text colors update live and match the selected scheme; Undo after a scheme change
-  reverts to the previous scheme.
+  **Note:** M7.2's undo stack held bare `WayprintLayout`s, which can't also carry a scheme
+  selection, so it's now `List<EditSnapshot>` (`EditSnapshot(layout, colorSchemeIndex)`) —
+  `dragStarted`/`dragEnded`/`undone` all updated to snapshot/restore both together, and the old
+  `dragStartLayout` field renamed to `dragStartSnapshot` to match. `WayprintUiState` gained
+  `colorSchemeIndex: Int = 0`; `colorSchemeSelected(index)` pushes the pre-change snapshot then
+  updates it, same shape as `dragEnded`. `WayprintViewModel.onColorSchemeSelected` is a one-line
+  delegation, matching M7.2's other edit methods. `WayprintScreen` reads
+  `PRESET_COLOR_SCHEMES[uiState.colorSchemeIndex]` for both the live `WayprintCanvas` and the
+  Export bitmap render (previously both hardcoded to `PRESET_COLOR_SCHEMES.first()`). The swatch
+  row reuses `WayprintCanvas.kt`'s existing `parseHexColor` (made non-private) rather than
+  duplicating hex parsing. ktlint's compose-rules flagged the swatch callback as
+  `onSelected`/past-tense — renamed to `onSelect` (present tense, matching `onClick`-style
+  naming) to pass `detekt`.
+  **Verify:** `feature:wayprint:ui:testAndroidHostTest`/`feature:wayprint:domain:testAndroidHostTest`
+  pass (added `colorSchemeSelected`/undo-after-scheme-change cases to `WayprintUiStateTest`),
+  `detekt`/`ktlintCheck` clean — confirmed. Emulator check (`Medium_Phone_API_36.1`, `gplay`
+  debug build, `feature:wayprint:domain`'s `04 Riesa - Meissen.gpx` fixture) — loaded the GPX,
+  tapped through all 5 swatches: route line/markers/labels recolored live each time and the
+  selection border tracked the tapped swatch; tapped Undo after the 5th (pink) selection and it
+  reverted to the 4th (purple) scheme, matching the pre-tap state — confirmed.
 
 - [ ] **M7.4** — `core:storage` module (new — `wayprint.kmp.library` +
   `wayprint.kmp.serialization` per §5; add it to §4/§5's module tables when scaffolded): persists

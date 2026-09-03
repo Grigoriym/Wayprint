@@ -56,6 +56,10 @@ class WayprintViewModel(private val context: Context) : ViewModel() {
         _uiState.update { it.dragEnded() }
     }
 
+    fun onColorSchemeSelected(index: Int) {
+        _uiState.update { it.colorSchemeSelected(index) }
+    }
+
     fun undo() {
         _uiState.update { it.undone() }
     }
