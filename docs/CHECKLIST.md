@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** none — M0-M7 MVP roadmap complete; see Backlog below for what's next
+**Current step:** M8.1
 
 ## How to use this
 
@@ -1220,6 +1220,49 @@ Shared context for all of M7 (re-derive nothing below from scratch):
   scheme-only case restores correctly on its own (reinstalling the APK mid-flow, before ever
   dragging, still force-stopped+relaunched with the purple scheme intact).
 
+## M8 — start over
+
+A "Start over" action that clears the persisted draft and returns to the import screen. Second
+growth-roadmap/backlog item promoted to a milestone (2026-09-03, user-reported gap: M7.4's
+persisted draft means a previously-opened track reappears after every relaunch with no exit from
+it — the Import-GPX button only shows when `WayprintUiState.layout == null`). Broken down below
+into `DraftStorage.clear()` and the ViewModel/UI wiring (confirmation dialog + top-bar action).
+
+Shared context for all of M8 (re-derive nothing below from scratch):
+- User decision (2026-09-03, this session): starting over asks for confirmation first (a dialog:
+  "Start over? This discards your current route." Cancel / Start over) rather than discarding
+  immediately on tap — there's no undo across a draft clear (M7.2's undo stack is in-memory only
+  and gets reset along with everything else), so this is a genuinely irreversible action, per
+  CLAUDE.md's caution around hard-to-reverse actions.
+- Single-draft model still holds — the recent-tracks-list backlog item (multiple saved drafts) is
+  separate and unscoped, so "start over" means clearing the one draft `DraftStorage`
+  (`core:storage`, M7.4) holds, not archiving it anywhere first.
+- `WayprintViewModel`'s empty/import state is exactly `WayprintUiState()` (its default
+  constructor) — `loadFromUri`'s error path already resets to a fresh `WayprintUiState(error =
+  ...)`, so "return to the import screen" is just assigning a fresh default `WayprintUiState()`
+  and clearing `draftGpxBytes`, no new UI state needed in `WayprintScreen` (the existing `else ->
+  Button("Import GPX")` branch already covers `layout == null`).
+- `WayprintScreen`'s `CenterAlignedTopAppBar` has no `actions` today — that's the natural home for
+  a "Start over" icon action, gated on `uiState.layout != null` (mirrors how Undo/swatches/Export
+  are already gated the same way, just in the `Box` below rather than the app bar).
+
+- [ ] **M8.1** — `core:storage`: `DraftStorage.clear()` — deletes `gpxFile`/`metadataFile` if
+  present, a no-op if neither exists. Unit tests: save-then-clear-then-load returns `null`;
+  calling `clear()` on a directory with nothing saved doesn't throw.
+  **Verify:** `./gradlew :core:storage:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+
+- [ ] **M8.2** — `feature:wayprint:ui`: `WayprintViewModel.startOver()` — calls
+  `draftStorage.clear()`, resets `draftGpxBytes = null` and `_uiState.value = WayprintUiState()`.
+  `WayprintScreen`: a "Start over" icon action in the top app bar (visible only when
+  `uiState.layout != null`) opens an `AlertDialog` (per the shared-context decision above);
+  confirming calls `viewModel.startOver()`, cancelling dismisses with no change.
+  **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass;
+  `./gradlew build` (same pre-existing F-Droid-signing exclusions) passes project-wide. Emulator
+  check (`emulator-testing` skill): import a GPX, drag a label and/or pick a color scheme, tap
+  "Start over", cancel — nothing changes; tap it again and confirm — the app returns to the
+  Import-GPX screen; force-stop and relaunch — no draft is restored (Import-GPX shows immediately,
+  not the previously-loaded route).
+
 ## Backlog (growth roadmap, not milestones yet)
 
 - More input sources: Health Connect / Strava OAuth import; on-device live recording (its own
@@ -1227,12 +1270,6 @@ Shared context for all of M7 (re-derive nothing below from scratch):
 - Multiple layout templates (poster, square post, story) once the story layout is proven —
   includes aspect-ratio picking, deferred out of M7.
 - iOS/Desktop targets for `core:gpx` and the Compose `Canvas` renderer.
-- No way to start over once a track is loaded (2026-09-03, user-reported): M7.4's persisted
-  draft means a previously-opened track keeps reappearing after every relaunch, and today's UI
-  has no exit from it — the Import-GPX button only shows when `WayprintUiState.layout == null`.
-  Needs a "New"/replace action, plus a decision on what happens to the current draft when a new
-  track is picked (discard outright? confirm first? save it somewhere before replacing?) — the
-  next bullet is one way that decision could go.
 - A recent-tracks list (2026-09-03, user-reported): implies moving past M7.4's single-draft
   model to multiple saved routes, which in turn implies real navigation — more than one screen
   (a home/recents list, the canvas/edit screen, maybe settings) needing `core:navigation`

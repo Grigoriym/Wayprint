@@ -123,11 +123,16 @@ sections, expanded into milestones — see `docs/CHECKLIST.md` for the step-by-s
    draft that survives an app kill. First growth-roadmap item pulled off the backlog into an
    actual milestone (Android-only, per the user — other platforms/aspect-ratio templates stay
    backlog).
+9. **M8** — start over: an action that clears the persisted draft and returns to the import
+   screen, with a confirmation dialog first (no undo across a draft clear). Second
+   growth-roadmap/backlog item pulled into a milestone, from a user-reported gap after M7.4
+   shipped persisted drafts.
 
 Remaining growth roadmap (not milestones yet, backlog only): more input sources (Health Connect,
 Strava OAuth, on-device recording — a distinct scope jump), multiple layout templates (poster,
 square, story — includes aspect-ratio picking, deferred out of M7), iOS/Desktop targets for
-`core:gpx` and the Compose `Canvas` renderer.
+`core:gpx` and the Compose `Canvas` renderer, a recent-tracks list (moving past the single-draft
+model, implies real navigation), combining multiple GPX tracks into one image.
 
 ## 9. Open decisions / risks
 
@@ -238,3 +243,8 @@ square, story — includes aspect-ratio picking, deferred out of M7), iOS/Deskto
     copy avoids entirely. This is what finally gives `core:storage` (deferred since M0, §4) a
     concrete need, and pulls in `wayprint.kmp.serialization` (deferred since M0, §5) for the
     stored draft's format.
+- **M8 start-over scope** — resolved at M8 step-break-down (2026-09-03), see
+  `docs/CHECKLIST.md`'s M8 shared context for the full reasoning. One user decision: starting over
+  confirms first (a dialog) rather than discarding the draft immediately on tap, since a draft
+  clear has no undo. Stays within the existing single-draft model — saving the discarded draft
+  somewhere (a recent-tracks list) is a separate, unscoped backlog item, not part of M8.
