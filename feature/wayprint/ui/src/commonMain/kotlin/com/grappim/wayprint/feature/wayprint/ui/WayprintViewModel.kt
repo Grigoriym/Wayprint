@@ -120,6 +120,15 @@ class WayprintViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    /** Clears the persisted draft and returns to the import screen. Irreversible — the caller confirms first. */
+    fun startOver() {
+        draftGpxBytes = null
+        _uiState.value = WayprintUiState()
+        viewModelScope.launch(Dispatchers.IO) {
+            draftStorage.clear()
+        }
+    }
+
     fun exportAndShare(bitmap: Bitmap) {
         viewModelScope.launch(Dispatchers.IO) {
             val imageUrl = MediaStore.Images.Media.insertImage(

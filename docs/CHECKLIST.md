@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M8.2
+**Current step:** none — M0-M8 complete, see Backlog below for growth-roadmap items
 
 ## How to use this
 
@@ -1251,7 +1251,7 @@ Shared context for all of M8 (re-derive nothing below from scratch):
   calling `clear()` on a directory with nothing saved doesn't throw.
   **Verify:** `./gradlew :core:storage:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
 
-- [ ] **M8.2** — `feature:wayprint:ui`: `WayprintViewModel.startOver()` — calls
+- [x] **M8.2** — `feature:wayprint:ui`: `WayprintViewModel.startOver()` — calls
   `draftStorage.clear()`, resets `draftGpxBytes = null` and `_uiState.value = WayprintUiState()`.
   `WayprintScreen`: a "Start over" icon action in the top app bar (visible only when
   `uiState.layout != null`) opens an `AlertDialog` (per the shared-context decision above);
@@ -1262,6 +1262,8 @@ Shared context for all of M8 (re-derive nothing below from scratch):
   "Start over", cancel — nothing changes; tap it again and confirm — the app returns to the
   Import-GPX screen; force-stop and relaunch — no draft is restored (Import-GPX shows immediately,
   not the previously-loaded route).
+  Note: `Icons.Filled.RestartAlt` isn't in `material-icons-core` (the only icons artifact this
+  project depends on, see `KmpCompose.kt`) — used `Icons.Filled.Refresh` instead, which is.
 
 ## Backlog (growth roadmap, not milestones yet)
 

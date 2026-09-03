@@ -17,12 +17,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,6 +62,7 @@ fun WayprintScreen(modifier: Modifier = Modifier, viewModel: WayprintViewModel =
         if (uri != null) viewModel.loadFromUri(uri)
     }
 
+    var showStartOverConfirm by remember { mutableStateOf(false) }
     var pendingExportBitmap by remember { mutableStateOf<Bitmap?>(null) }
     val requestExportPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -67,9 +74,41 @@ fun WayprintScreen(modifier: Modifier = Modifier, viewModel: WayprintViewModel =
     val layout = uiState.layout
     val error = uiState.error
 
+    if (showStartOverConfirm) {
+        AlertDialog(
+            onDismissRequest = { showStartOverConfirm = false },
+            title = { Text("Start over?") },
+            text = { Text("This discards your current route.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showStartOverConfirm = false
+                    viewModel.startOver()
+                }) {
+                    Text("Start over")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStartOverConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Scaffold(
         modifier = modifier,
-        topBar = { CenterAlignedTopAppBar(title = { Text("Wayprint") }) }
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Wayprint") },
+                actions = {
+                    if (layout != null) {
+                        IconButton(onClick = { showStartOverConfirm = true }) {
+                            Icon(Icons.Filled.Refresh, contentDescription = "Start over")
+                        }
+                    }
+                }
+            )
+        }
     ) { innerPadding ->
         Box(
             modifier = Modifier.fillMaxSize().padding(innerPadding),

@@ -16,7 +16,10 @@ fun Project.configureKmpCompose() {
                 implementation(libs.findLibrary("jetbrains.compose.material3").get())
                 implementation(libs.findLibrary("jetbrains.compose.material").get())
                 // material3 does not bring the icons along transitively — `Icons.Filled.*` is
-                // unresolved without this.
+                // unresolved without this. This is `material-icons-core` only (not `-extended`),
+                // so only the curated core subset resolves — e.g. `Icons.Filled.RestartAlt` is
+                // unresolved but `Icons.Filled.Refresh` is fine. Add the `-extended` artifact if
+                // a wider icon set is ever needed.
                 implementation(libs.findLibrary("jetbrains.compose.icons").get())
                 implementation(libs.findLibrary("jetbrains.compose.navigationevent").get())
 
