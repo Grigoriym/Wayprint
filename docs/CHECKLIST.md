@@ -1227,3 +1227,22 @@ Shared context for all of M7 (re-derive nothing below from scratch):
 - Multiple layout templates (poster, square post, story) once the story layout is proven —
   includes aspect-ratio picking, deferred out of M7.
 - iOS/Desktop targets for `core:gpx` and the Compose `Canvas` renderer.
+- No way to start over once a track is loaded (2026-09-03, user-reported): M7.4's persisted
+  draft means a previously-opened track keeps reappearing after every relaunch, and today's UI
+  has no exit from it — the Import-GPX button only shows when `WayprintUiState.layout == null`.
+  Needs a "New"/replace action, plus a decision on what happens to the current draft when a new
+  track is picked (discard outright? confirm first? save it somewhere before replacing?) — the
+  next bullet is one way that decision could go.
+- A recent-tracks list (2026-09-03, user-reported): implies moving past M7.4's single-draft
+  model to multiple saved routes, which in turn implies real navigation — more than one screen
+  (a home/recents list, the canvas/edit screen, maybe settings) needing `core:navigation`
+  (deferred since M0, §4 — "add when there's a second screen worth routing between"; this would
+  be that trigger). Open question, not designed yet: what a "recent" even is here (every past
+  import? only explicitly saved ones?) and what the navigation shape should look like — a
+  step-break-down of its own once picked up, not a small addition.
+- Combining several GPX tracks into one image (2026-09-03, user-reported): open design
+  question, not scoped. `dayPalette()` (`core:gpx`, ported M1.3) already exists for per-track/
+  per-day coloring and has never had a caller — this is the feature that would finally use it.
+  Unresolved: how multiple tracks share one projection/scale (`fitProjection` today fits a
+  single track's own bounding box), whether it's one combined distance label or one per track,
+  and how label collision-avoidance behaves with 3x as many labels competing for space.
