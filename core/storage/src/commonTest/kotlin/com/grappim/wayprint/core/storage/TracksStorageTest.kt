@@ -1,5 +1,6 @@
 package com.grappim.wayprint.core.storage
 
+import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -9,7 +10,8 @@ import kotlin.test.assertTrue
 
 class TracksStorageTest {
 
-    private val storage = TracksStorage(Files.createTempDirectory("tracks-storage-test").toFile())
+    private val directory = Files.createTempDirectory("tracks-storage-test").toFile()
+    private val storage = TracksStorage(directory)
 
     private fun labels() = listOf(
         SavedLabel(id = "start", text = "Start", x = 1.5, y = 2.5, anchor = "START"),
@@ -20,24 +22,28 @@ class TracksStorageTest {
         colorSchemeIndex: Int = 0,
         displayName: String = "Track",
         importedAtEpochMillis: Long = 0L,
-        distanceKm: Double = 0.0
+        distanceKm: Double = 0.0,
+        storyPresetIndex: Int = 0
     ) = TrackMetadata(
         labels = labels(),
         colorSchemeIndex = colorSchemeIndex,
         displayName = displayName,
         importedAtEpochMillis = importedAtEpochMillis,
-        distanceKm = distanceKm
+        distanceKm = distanceKm,
+        storyPresetIndex = storyPresetIndex
     )
 
     private fun combinedMetadata(
         displayName: String = "Combined track",
         importedAtEpochMillis: Long = 0L,
-        distanceKm: Double = 0.0
+        distanceKm: Double = 0.0,
+        storyPresetIndex: Int = 0
     ) = CombinedTrackMetadata(
         labels = labels(),
         displayName = displayName,
         importedAtEpochMillis = importedAtEpochMillis,
-        distanceKm = distanceKm
+        distanceKm = distanceKm,
+        storyPresetIndex = storyPresetIndex
     )
 
     @Test
@@ -120,5 +126,40 @@ class TracksStorageTest {
     @Test
     fun `delete on an unknown id does not throw`() {
         storage.delete("missing")
+    }
+
+    @Test
+    fun `save then load round-trips a non-default storyPresetIndex`() {
+        val trackMetadata = metadata(storyPresetIndex = 1)
+
+        storage.save("track-1", "gpx".toByteArray(), trackMetadata)
+
+        assertEquals(1, requireNotNull(storage.load("track-1")).metadata.storyPresetIndex)
+    }
+
+    @Test
+    fun `load defaults storyPresetIndex to 0 for metadata json saved before that field existed`() {
+        val trackDirectory = File(directory, "legacy-single").apply { mkdirs() }
+        File(trackDirectory, "track.gpx").writeBytes("<gpx/>".toByteArray())
+        File(trackDirectory, "metadata.json").writeText(
+            """{"labels":[],"colorSchemeIndex":0,"displayName":"Legacy","importedAtEpochMillis":0,"distanceKm":0.0}"""
+        )
+
+        val restored = requireNotNull(storage.load("legacy-single"))
+
+        assertEquals(0, restored.metadata.storyPresetIndex)
+    }
+
+    @Test
+    fun `loadCombined defaults storyPresetIndex to 0 for metadata json saved before that field existed`() {
+        val trackDirectory = File(directory, "legacy-combined").apply { mkdirs() }
+        File(trackDirectory, "track-0.gpx").writeBytes("<gpx/>".toByteArray())
+        File(trackDirectory, "metadata.json").writeText(
+            """{"labels":[],"displayName":"Legacy combined","importedAtEpochMillis":0,"distanceKm":0.0}"""
+        )
+
+        val restored = requireNotNull(storage.loadCombined("legacy-combined"))
+
+        assertEquals(0, restored.metadata.storyPresetIndex)
     }
 }

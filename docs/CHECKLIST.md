@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M12.1 done, next up is M12.2. M0–M11 (the full MVP roadmap) are complete —
+**Current step:** M12.2 done, next up is M12.3. M0–M11 (the full MVP roadmap) are complete —
 moved to `docs/CHECKLIST_ARCHIVE.md`. Release CI/publish was explicitly deferred by the user
 (keystores ready since M6.3) — pick that back up only when they say the app is ready to ship.
 
@@ -104,12 +104,16 @@ Shared context:
   `SQUARE_STORY_PRESET` — confirmed 3 non-overlapping labels stay within the square canvas
   bounds, no numeric drift from the existing story-preset pipeline.
 
-- [ ] **M12.2** — `core:storage`: add a persisted preset selector (e.g. `storyPresetIndex: Int =
+- [x] **M12.2** — `core:storage`: add a persisted preset selector (e.g. `storyPresetIndex: Int =
   0`) to both `TrackMetadata` and `CombinedTrackMetadata` — the default of `0` is what lets every
   track persisted before this milestone keep loading as the story shape with no migration step.
   **Verify:** `./gradlew :core:storage:testAndroidHostTest`, `detekt`, `ktlintCheck` pass. A test
   deserializing a pre-M12.2-shaped JSON fixture (no `storyPresetIndex` key) confirms it still
   loads, defaulting to index 0.
+  Note: added the field to both data classes with a `storyPresetIndex: Int = 0` default, plus a
+  round-trip test for a non-default value and two legacy-JSON-fixture tests (one per metadata
+  type, writing raw pre-M12.2 `metadata.json` content directly) confirming both `load` and
+  `loadCombined` default to 0 when the key is absent.
 
 - [ ] **M12.3** — `feature:wayprint:ui`: a template-pick step (new `AlertDialog`, matching this
   app's existing dialog precedent — see shared context) inserted into `RecentsViewModel.importGpx`
