@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M9.2
+**Current step:** M9.3
 
 ## How to use this
 
@@ -1347,7 +1347,7 @@ Shared context for all of M9 (re-derive nothing below from scratch):
   `topLevelKeys` always a one-element set), plus its `NavigatorTest`.
   **Verify:** `./gradlew :core:navigation:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
 
-- [ ] **M9.2** — `core:storage`: generalize `DraftStorage` into `TracksStorage` per the shared
+- [x] **M9.2** — `core:storage`: generalize `DraftStorage` into `TracksStorage` per the shared
   context above (`Track`/`TrackMetadata`/`TrackSummary`, per-track subdirectory, `save(id, ...)`/
   `load(id)`/`list()`/`delete(id)`). Unit tests: save-then-load round-trips a track exactly;
   `list()` returns every saved track's summary, newest first; `delete(id)` removes only the
