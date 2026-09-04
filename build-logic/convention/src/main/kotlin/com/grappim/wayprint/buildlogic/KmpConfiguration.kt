@@ -10,8 +10,8 @@ private const val JDK_VERSION = 21
  * The single edit point for platform targets.
  *
  * The Android target itself is declared by `com.android.kotlin.multiplatform.library` in
- * `KmpLibraryConventionPlugin`. `jvm()` (Desktop, M15) is declared here; `iosArm64()`/
- * `iosSimulatorArm64()` (M16) go here too, and nowhere else, when that target arrives.
+ * `KmpLibraryConventionPlugin`. `jvm()` (Desktop, M15) and `iosArm64()`/`iosSimulatorArm64()`
+ * (M16) are both declared here, and nowhere else.
  */
 fun Project.configureKmp() {
     // Android + JVM both have real host-test coverage now (`testAndroidHostTest`, `jvmTest`) —
@@ -26,6 +26,9 @@ fun Project.configureKmp() {
         }
 
         jvm()
+
+        iosArm64()
+        iosSimulatorArm64()
 
         sourceSets.apply {
             commonMain.dependencies {

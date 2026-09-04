@@ -30,11 +30,10 @@ fun dayPalette(
 ): List<String> = (0 until n).map { i ->
     val h = hues[i % hues.size]
     val (r, g, b) = hlsToRgb(h / 360.0, l, s)
-    "#%02x%02x%02x".format(
-        roundHalfEvenToInt(r * RGB_MAX),
-        roundHalfEvenToInt(g * RGB_MAX),
-        roundHalfEvenToInt(b * RGB_MAX)
-    )
+    // `String.format` is JVM-only — Kotlin/Native (M16) has no equivalent, hence the manual hex padding.
+    listOf(r, g, b).joinToString(prefix = "#", separator = "") { channel ->
+        roundHalfEvenToInt(channel * RGB_MAX).toString(radix = 16).padStart(2, '0')
+    }
 }
 
 private fun hlsToRgb(h: Double, l: Double, s: Double): Triple<Double, Double, Double> {
