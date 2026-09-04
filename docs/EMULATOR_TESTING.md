@@ -39,3 +39,12 @@ technique lives in the skill itself, not here — this file is only what's true 
   ~219px top-app-bar offset (screen-space), several guessed coordinates missed the box entirely
   before the log-based approach hit on the first try. Remove the temporary log line before
   finishing the change.
+- Testing the `ACTION_VIEW`/`ACTION_SEND` share-intent path via `adb shell am start -d
+  file:///...`: a `file://` URI fails with `open failed: EACCES (Permission denied)` even when
+  it points at the app's *own* external files dir (`/sdcard/Android/data/<pkg>/files/`,
+  world-readable, files pushed there directly) — scoped storage blocks it regardless. Push the
+  GPX fixture to `/sdcard/Download/` instead, `am broadcast -a
+  android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/<name>.gpx`, then
+  drive the real SAF picker (tap the FAB, it opens straight into Downloads on this AVD, tap the
+  file) to get a real `content://` grant — this is also the more faithful test of M9's "Import
+  GPX" flow anyway. (M9.5, 2026-09-04.)

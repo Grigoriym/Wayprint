@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M9.4
+**Current step:** M9.5 done — M9 (recent tracks) complete
 
 ## How to use this
 
@@ -1379,7 +1379,7 @@ Shared context for all of M9 (re-derive nothing below from scratch):
   new id as a one-shot event for the caller to navigate on; `deleteTrack(id)`).
   **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
 
-- [ ] **M9.5** — `composeApp`: wire it together — `nav/NavKeySerializers.kt`
+- [x] **M9.5** — `composeApp`: wire it together — `nav/NavKeySerializers.kt`
   (`navKeySerializersModule`/`navSavedStateConfiguration` listing `RecentsRoute` and
   `WayprintEditRoute`), `nav/entries/WayprintEntryProvider.kt` (the one place that knows both
   routes and both screens, wiring the screens' navigation callbacks to `navigator.navigate(...)`/
@@ -1396,6 +1396,21 @@ Shared context for all of M9 (re-derive nothing below from scratch):
   confirming removes only that row; force-stop and relaunch — the list still shows the remaining
   track (multi-track persistence survives process death, not just the old single-draft case
   M7.4/M8 already covered).
+  **Note:** `./gradlew build` surfaced a real regression not in this step's file list —
+  `androidApp/MainActivity.kt`'s M5.2 share/view-intent handling still called the pre-M9
+  single-draft `WayprintViewModel.loadFromUri` (removed in M9.3), so `androidApp` failed to
+  compile. Fixed by threading a `pendingImportUri: Uri?` from `MainActivity` through
+  `WayprintAppContent`/`WayprintNavHost`/`wayprintEntry` into `RecentsScreen`, which imports it
+  via its existing `RecentsViewModel.importGpx` (same code path the FAB uses, so the visible
+  list stays consistent) and clears it via a `clearPendingImport` callback; a share arriving
+  while `WayprintEditRoute` is on screen first navigates back to Recents. Also added
+  `WayprintScreen`'s missing `trackId`/`koinViewModel { parametersOf(trackId) }` wiring, which
+  M9.3 had left off (`@InjectedParam` existed on the ViewModel but no call site supplied it).
+  Emulator-verified via the real "Import GPX" FAB → SAF picker flow (not `am start -d file://`,
+  which fails with `EACCES` even against the app's own external files dir — see
+  `docs/EMULATOR_TESTING.md`), against two distinct real GPX fixtures (26.2 km / 80.0 km):
+  import, list, drag+color-scheme edit surviving back-then-reopen, delete-only-one-row, and
+  list surviving `force-stop`+relaunch all passed.
 
 ## Backlog (growth roadmap, not milestones yet)
 

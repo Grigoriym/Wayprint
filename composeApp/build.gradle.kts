@@ -8,6 +8,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":uikit"))
+            implementation(project(":core:navigation"))
             implementation(project(":feature:wayprint:domain"))
             implementation(project(":feature:wayprint:ui"))
         }

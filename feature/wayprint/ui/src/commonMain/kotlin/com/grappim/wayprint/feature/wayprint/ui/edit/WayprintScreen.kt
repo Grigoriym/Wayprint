@@ -47,6 +47,7 @@ import com.grappim.wayprint.feature.wayprint.ui.WayprintCanvas
 import com.grappim.wayprint.feature.wayprint.ui.parseHexColor
 import com.grappim.wayprint.feature.wayprint.ui.renderWayprintStoryBitmap
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 private val SCREEN_PADDING = 16.dp
 private val SWATCH_SIZE = 32.dp
@@ -57,9 +58,10 @@ private val SWATCH_BORDER_UNSELECTED = 1.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WayprintScreen(
+    trackId: String,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: WayprintViewModel = koinViewModel()
+    viewModel: WayprintViewModel = koinViewModel { parametersOf(trackId) }
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current

@@ -46,6 +46,8 @@ private val ROW_VERTICAL_PADDING = 12.dp
 fun RecentsScreen(
     onTrackClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    pendingImportUri: Uri? = null,
+    clearPendingImport: () -> Unit = {},
     viewModel: RecentsViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -57,6 +59,13 @@ fun RecentsScreen(
 
     LaunchedEffect(Unit) {
         viewModel.imported.collect { id -> onTrackClick(id) }
+    }
+
+    LaunchedEffect(pendingImportUri) {
+        if (pendingImportUri != null) {
+            viewModel.importGpx(pendingImportUri)
+            clearPendingImport()
+        }
     }
 
     val deleteId = pendingDeleteId
