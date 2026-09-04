@@ -1,10 +1,13 @@
 # Wayprint checklist
 
-**Current step:** M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar
-decluttering, and moving Android-only code out of `commonMain`) are complete and archived to
-`docs/CHECKLIST_ARCHIVE.md`. Nothing scoped and ready right now — see Backlog below for growth
-candidates. Release CI/publish was explicitly deferred by the user (keystores ready since M6.3) —
-pick that back up only when they say the app is ready to ship.
+**Current step:** M15 scoped and ready (add a Desktop/JVM KMP target — see below), starting at
+M15.1. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
+and moving Android-only code out of `commonMain`) are complete and archived to
+`docs/CHECKLIST_ARCHIVE.md`. M15 is fully buildable/runnable/verifiable on this dev machine; M16
+adds iOS after M15 lands, but its verification is capped — this machine is Linux, so an iOS app
+can't actually be built or run here, only compiled. Release CI/publish was explicitly deferred by
+the user (keystores ready since M6.3) — pick that back up only when they say the app is ready to
+ship.
 
 ## How to use this
 
@@ -34,6 +37,186 @@ Ground rules (see `docs/IMPLEMENTATION_PLAN.md` for the *why* behind any of thes
 Completed milestones live in `docs/CHECKLIST_ARCHIVE.md`, each step's full `Note:`/`Verify:` text
 preserved verbatim — read that file for history/precedent, not this one.
 
+## M15 — Add a Desktop (JVM) KMP target
+
+Scoped 2026-09-04, following up on M14: moving the 8 Android-importing files to `androidMain`
+made the build honest, but did nothing to make Wayprint portable — it just legalized the status
+quo. This milestone does the real work for one second target. **Desktop, not iOS, goes first**:
+this dev machine is Linux, so a Desktop (JVM) app is fully buildable, runnable, and verifiable
+here the same way every other milestone has been, where an iOS app cannot be — Kotlin/Native can
+compile the klib on Linux, but there's no way to produce or run a real `.app`/simulator build
+without a Mac + Xcode. M16 (below) adds iOS once this one lands, reusing the interfaces this one
+designs rather than guessing them speculatively for three platforms at once.
+
+Reference precedent: `../TaigaMobileNova` already ships a real desktop target — its
+`build-logic/.../KmpConfiguration.kt` (the doc comment Wayprint's own `KmpConfiguration.kt` was
+copied from) declares `jvm()`, and `composeApp/src/jvmMain/.../TaigaMobileDesktop.kt` +
+`composeApp/build.gradle.kts`'s `compose.desktop { application { ... } }` block wire a real
+runnable window — no separate `desktopApp` module, `jvmMain` just lives alongside `androidMain`
+inside the existing `composeApp`. Taiga's `core:storage` also already solved "no `java.io.File`
+on Kotlin/Native" once, with `kotlinx-io-core` (`Path`/`SystemFileSystem`, JetBrains' own KMP I/O
+library) — same fix applies here.
+
+**Investigation finding — the non-portable surface is bigger than the 8 files M14 moved.** Those
+8 had `android.*` imports; a separate, previously-unscoped set of files has plain JVM-standard
+imports that don't exist on Kotlin/Native either (not "Android-only", just never ported off the
+JVM stdlib since there was nowhere else to run them):
+
+- `core:gpx`: `Projection.kt`/`DayPalette.kt` use `java.math.BigDecimal`/`RoundingMode` for
+  `HALF_EVEN` rounding (ported from the Python reference's `round()` — exact behavior matters,
+  the existing golden-value tests pin it). `GpxParser.kt` uses `javax.xml.parsers.DocumentBuilderFactory`
+  for GPX's XML — no DOM parser exists on Kotlin/Native. `RouteArt.kt`/`GpxParser.kt` take a
+  `java.io.InputStream`.
+- `feature:wayprint:domain`: `WayprintLayout.kt`/`WayprintRoute.kt` also take `InputStream`;
+  `WayprintLayout.kt` uses `String.format(Locale.ROOT, "%.1f km", ...)` for the distance label.
+- `core:storage`: `TracksStorage.kt` is built entirely on `java.io.File` (per CLAUDE.md's settled
+  decision to keep it `File`-based rather than `Context`/DataStore-based — that decision stands,
+  only the concrete type changes to something portable).
+- `feature:wayprint:ui`'s `WayprintCanvas.kt` (one of M14's 8): two of its four `android.*` uses
+  (`Bitmap`, `android.graphics.Canvas`) have a drop-in Compose Multiplatform replacement
+  (`ImageBitmap`/`Canvas(imageBitmap)`, already portable, not new abstraction) — no `expect`/
+  `actual` needed for those two. The other two (`Paint`-based label-halo text via `nativeCanvas`)
+  need Compose Multiplatform's `TextMeasurer`/`Paragraph` API instead — `IMPLEMENTATION_PLAN.md`'s
+  M4 note already flagged this exact spot as "revisit when/if an iOS/Desktop target is added."
+- The other 6 of M14's 8 files (`WayprintViewModel`, `RecentsViewModel`, `WayprintScreen`,
+  `RecentsScreen`, `WayprintAppContent`, `WayprintNavHost`, `WayprintEntryProvider`) touch
+  `Uri`/`ContentResolver`/`MediaStore`/`FileProvider`/share `Intent`/the pre-Android-Q storage
+  permission check/`rememberLauncherForActivityResult` — all genuinely platform-specific, no
+  portable equivalent, real `expect`/`actual` needed. Desktop's own actuals: a Swing/AWT
+  `JFileChooser`/`FileDialog` for picking + a native "Save As" dialog for export. **Open design
+  question, not pre-decided here:** Desktop has no share-sheet equivalent — M15.7 below needs to
+  decide what "Share" means on Desktop (hide the action entirely? "Save As" under a different
+  label? something else) before implementing its actual.
+
+Sequencing rule for every step below: **land the portability fix while still Android-only-target,
+then flip the target switch last (M15.8)**, so every intermediate step keeps `./gradlew build`
+green on the one target that exists today — never leave the tree mid-migration with the new
+target half-wired and everything red, since each step still needs its own passing Verify line.
+
+- [ ] **M15.1** — `core:gpx`: replace `BigDecimal`/`RoundingMode` in `roundToOneDecimal`
+  (`Projection.kt`) and `roundHalfEvenToInt` (`DayPalette.kt`) with a hand-written, portable
+  `HALF_EVEN` rounding helper (no new dependency — this is arithmetic, not I/O).
+  **Verify:** `./gradlew :core:gpx:testAndroidHostTest`, `detekt`, `ktlintCheck` pass — the
+  existing golden-value tests (ported from the Python reference) must still pass bit-for-bit,
+  proving the replacement rounds identically at the boundary cases `BigDecimal.HALF_EVEN` cares
+  about (exact `.5` ties).
+
+- [ ] **M15.2** — `core:gpx`: replace `java.io.InputStream`/`java.io.StringReader` (`RouteArt.kt`,
+  `GpxParser.kt`) with `kotlinx-io-core`'s `Source`/`Buffer` (add the dependency to
+  `gradle/libs.versions.toml` + `core:gpx`'s `commonMain.dependencies`), and replace
+  `javax.xml.parsers.DocumentBuilderFactory`'s DOM walk with a portable GPX parse. **Open design
+  question for this step, not pre-decided:** a real KMP XML library (e.g. `io.github.pdvrieze:xmlutil`)
+  vs. a hand-rolled parser for GPX's narrow needed subset (`<trkpt lat lon><ele>`) — decide by
+  reading `GpxParser.kt`'s actual DOM usage first; don't default to the heavier dependency without
+  checking whether the hand-rolled path is simpler, per CLAUDE.md's "simplicity first".
+  **Verify:** `./gradlew :core:gpx:testAndroidHostTest`, `detekt`, `ktlintCheck` pass — parses the
+  existing GPX fixture(s) identically to before (byte-for-byte same `WayprintRoute`/`TrackPoint`
+  output).
+
+- [ ] **M15.3** — `feature:wayprint:domain`: replace `WayprintLayout.kt`/`WayprintRoute.kt`'s
+  `InputStream` param with the `kotlinx-io` type M15.2 settled on, and `String.format(Locale.ROOT,
+  "%.1f km", ...)` with a hand-written one-decimal formatter (no `java.util.Locale` on
+  Kotlin/Native).
+  **Verify:** `./gradlew :feature:wayprint:domain:testAndroidHostTest`, `detekt`, `ktlintCheck`
+  pass; the `"%.1f km"` label text is byte-identical for existing test fixtures (negative/zero/
+  large distances, not just the common case).
+
+- [ ] **M15.4** — `core:storage`: replace `TracksStorage.kt`'s `java.io.File` with `kotlinx-io`'s
+  `Path`/`SystemFileSystem`, mirroring `TaigaMobileNova/core/storage`'s own `File`→`kotlinx-io`
+  precedent. The constructor keeps taking a caller-resolved directory (CLAUDE.md's settled
+  decision stands — `core:storage` still doesn't know about `Context`), just typed as `Path`
+  instead of `File`; `WayprintViewModel`/`RecentsViewModel` (the only callers) update their
+  `context.filesDir` call site to wrap it as a `Path`.
+  **Verify:** `./gradlew :core:storage:testAndroidHostTest :feature:wayprint:ui:testAndroidHostTest`,
+  `detekt`, `ktlintCheck` pass; full `./gradlew build` (cross-module, per M9.5's frictions note).
+
+- [ ] **M15.5** — `feature:wayprint:ui`: in `WayprintCanvas.kt`, swap `renderWayprintStoryBitmap`/
+  `renderCombinedWayprintStoryBitmap`'s `android.graphics.Bitmap`+`android.graphics.Canvas` for
+  Compose Multiplatform's `ImageBitmap`+`androidx.compose.ui.graphics.Canvas(imageBitmap)`
+  (portable, no `expect`/`actual`, identical output), and replace `drawWayprintLabels`'s/
+  `hitTestLabelIndex`'s raw `android.graphics.Paint`/`nativeCanvas.drawText` with Compose
+  Multiplatform's `TextMeasurer`/`Paragraph` text API, threading a `TextMeasurer` in as a
+  parameter since these are plain (non-`@Composable`) `DrawScope` functions. Once done,
+  `WayprintCanvas.kt` has zero `android.*` imports — move it back from `androidMain` to
+  `commonMain` (M14's move reversed for this one file only).
+  **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+  Emulator check (`emulator-testing` skill): rendered route art (line, markers, label halo/fill
+  text) looks pixel-equivalent to before the swap, both on-screen and in the exported
+  save/share bitmap.
+
+- [ ] **M15.6** — `composeApp`: replace the plumbing-only `android.net.Uri` in
+  `WayprintAppContent.kt`/`WayprintNavHost.kt`/`WayprintEntryProvider.kt` with an
+  `expect class PlatformFileHandle` (Android `actual` wraps `Uri`; no behavior change on Android).
+  These 3 files use `Uri` only as a pass-through type — once swapped, they have zero `android.*`
+  imports and move back to `commonMain`.
+  **Verify:** `./gradlew build`, `detekt`, `ktlintCheck` pass; full share/import flow still works
+  identically on the emulator (M5.2's share-intent path, M13's Save/Share).
+
+- [ ] **M15.7** — `feature:wayprint:ui` + `composeApp`: the real platform split for what's left —
+  `WayprintViewModel`/`RecentsViewModel`'s `Context`/`MediaStore`/`FileProvider`/share `Intent`/
+  `ContentResolver` reads, and `WayprintScreen`/`RecentsScreen`'s pre-Android-Q permission check
+  and `rememberLauncherForActivityResult` picker launcher. Design `expect`/`actual` interfaces for:
+  reading a picked file's bytes + display name (`PlatformFileHandle` → `ByteArray`/`String`),
+  triggering the file picker (`@Composable expect fun rememberGpxPickerLauncher(...)`), and
+  exporting an image (`saveToGallery`/`share`, or Desktop's equivalents — **resolve the open
+  "what does Share mean on Desktop" question from this milestone's shared context before writing
+  the actual**). Android's `actual` is a refactor of existing working code, not new behavior;
+  jvm's `actual` uses Swing/AWT (`JFileChooser`/`FileDialog`, a native save dialog). This is the
+  biggest, most design-heavy step here — if it doesn't fit one session, split it at this
+  boundary (read/pick vs. save/share) rather than doing it half-done.
+  **Verify:** `./gradlew build`, `detekt`, `ktlintCheck` pass; Android emulator check confirms
+  zero behavior change (M5/M13's existing Verify points all still hold).
+
+- [ ] **M15.8** — Build-logic: add `jvm()` to `configureKmp()` (`KmpConfiguration.kt`), mirroring
+  `TaigaMobileNova/build-logic/.../KmpConfiguration.kt`'s `jvm()` line and its doc comment's own
+  "goes here, and nowhere else, when those apps arrive." Wire a real runnable Desktop entry point:
+  `composeApp/src/jvmMain/.../WayprintDesktop.kt` with `fun main()`, and a trimmed
+  `compose.desktop { application { ... } }` block in `composeApp/build.gradle.kts` (mirroring
+  `TaigaMobileNova/composeApp/build.gradle.kts`'s shape — skip what Taiga has that Wayprint
+  doesn't need: no F-Droid/Play flavor split, no `buildkonfig`). Add the `jetbrains.compose.desktop`
+  dependency to `gradle/libs.versions.toml`.
+  **Verify:** `./gradlew build` succeeds for the `jvm` target across every module (the whole
+  point of M15.1–M15.7 landing first); `detekt`, `ktlintCheck` pass. `./gradlew :composeApp:run`
+  launches a real window on this machine — import a GPX, render route art, Save/Share (however
+  M15.7 resolved Desktop's "Share") all work end-to-end. This is the one target in this milestone
+  fully verifiable start-to-finish on this dev machine.
+
+## M16 — Add an iOS KMP target
+
+Scoped 2026-09-04 alongside M15, but **don't start this until M15 is fully landed and archived**.
+Reusing M15's `expect`/`actual` interfaces (proven by two real implementations, Android and JVM)
+for a third platform is a much smaller, much less speculative step than designing those
+interfaces for three platforms in one shot — this is the whole reason M15/M16 are two milestones
+and not one.
+
+**The hard limit that shapes every step here: this dev machine is Linux.** Kotlin/Native can
+compile `iosArm64`/`iosSimulatorArm64` klibs on Linux with no Mac — that much is verifiable in
+this environment. Producing or running an actual `.app`, an Xcode build, or anything on a
+simulator/device requires a Mac with Xcode, which isn't available here. Every step's Verify line
+below is capped accordingly, and says so explicitly — **"compiles" is not "works."** Don't let a
+future session (or the user) mistake a green M16 checkbox for "the iOS app has been run."
+
+Reference precedent: `../TaigaMobileNova/iosApp` — a real Xcode project (`iosApp.xcodeproj`,
+`iOSApp.swift`, `ContentView.swift`, `Info.plist`) consuming `composeApp`'s iOS framework export.
+
+- [ ] **M16.1** — Build-logic: add `iosArm64()`/`iosSimulatorArm64()` to `configureKmp()`
+  (`KmpConfiguration.kt`), mirroring `TaigaMobileNova`'s same two lines. Add each M15 `expect`
+  interface's iOS `actual` (`PlatformFileHandle` → `NSURL`, file read via `NSFileManager`/`NSData`,
+  the picker launcher via a wrapped `UIDocumentPickerViewController`, image export via
+  `UIActivityViewController`/`PHPhotoLibrary`).
+  **Verify (capped — no Mac in this environment):** `./gradlew :core:gpx:compileIosArm64MainKotlinMetadata`
+  (and the equivalent for every other module up through `composeApp`) succeeds on this machine.
+  That is the full extent of what's verifiable here — the iOS actuals are **unverified beyond
+  compiling** until run on a real Mac + simulator/device.
+
+- [ ] **M16.2** — Add the `iosApp` Xcode project scaffold at the repo root, mirroring
+  `TaigaMobileNova/iosApp`'s structure, plus `composeApp`'s iOS framework export config
+  (`binaries.framework { ... }` in `composeApp/build.gradle.kts`, per Taiga's own).
+  **Verify (capped — no Mac in this environment):** `./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64`
+  succeeds on this machine. Actually opening `iosApp.xcodeproj`, building, and running on a
+  simulator/device is **out of reach here** — flag this step done-but-unverified-end-to-end in
+  its `Note:`, and ask the user to confirm on their own Mac before treating M16 as trustworthy.
+
 ## Backlog (growth roadmap, not milestones yet)
 
 - More input sources: Health Connect / Strava OAuth import; on-device live recording (its own
@@ -42,7 +225,6 @@ preserved verbatim — read that file for history/precedent, not this one.
   ratio/size isn't decided yet; if it changes `canvasWidth` (not just height) from the 1080 every
   M12 template shares, M12's "constants don't need to scale" simplification (see M12 shared
   context) needs revisiting first.
-- iOS/Desktop targets for `core:gpx` and the Compose `Canvas` renderer.
 - Color-scheme swatches (and any future style pickers) currently float as a permanent `TopEnd`
   overlay on the edit canvas — revisit if M13's toolbar decluttering makes that fixed position
   feel inconsistent, or once a poster template adds more style choices to pick from.
