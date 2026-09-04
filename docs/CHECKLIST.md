@@ -1412,6 +1412,126 @@ Shared context for all of M9 (re-derive nothing below from scratch):
   import, list, drag+color-scheme edit surviving back-then-reopen, delete-only-one-row, and
   list surviving `force-stop`+relaunch all passed.
 
+## M10 — freeform labels
+
+Generalizes the label model from "exactly 3 (Start/Finish/distance), regenerated fresh from GPX
+every load, only their (x, y) persisted positionally" to "an arbitrary, user-editable set of
+labels, added/removed/placed anywhere." Prerequisite for M11 (combining tracks), not itself scoped
+to multi-track — a fresh import still auto-generates global Start/Finish/distance as today, but
+the user is no longer stuck with exactly those three. Backlog item promoted to a milestone
+(2026-09-04, during the combine-tracks investigation below).
+
+Shared context:
+
+- Today's positional coupling (`WayprintViewModel.kt:59`, `:118`): `TrackMetadata.labelPositions`
+  is matched by index to whatever `buildWayprintLayout` regenerates on every load — it only
+  overrides (x, y), never count or text. That assumption breaks once labels can be freely
+  added/removed, since there's no longer a fixed regenerated set to overlay positions onto.
+- New persisted shape replacing `LabelPosition` in `core:storage`: each saved label needs its own
+  identity (an id), text, position, and anchor (`TextAnchor` — needed for correct bounding-box math
+  on redraw; today it's silently recomputed by `placeLabels()` on every load and never persisted,
+  which only worked because the label set was always the same 3). `core:storage` has no dependency
+  on `feature:wayprint:domain`, so persist anchor as a plain string (matching `TextAnchor.name`),
+  the same pattern `colorSchemeIndex: Int` already uses to keep `ColorScheme` out of storage.
+- Default generation on import stays global Start (first point) / Finish (last point) / total
+  distance (bbox-center) — the same 3 `buildWayprintLayout` produces today — just as the initial
+  contents of the now-editable set, not a fixed regenerated set. Decide at M10.1 whether defaults
+  are seeded once at import time (written into the persisted set immediately) or synthesized as a
+  "no saved labels yet" fallback on first load — the former matches M9's "every import saves
+  immediately" precedent more closely.
+
+- [ ] **M10.1** — `feature:wayprint:domain`: replace `WayprintLayout`'s implicit "always these 3"
+  assumption with an explicit, arbitrary `List<PlacedLabel>` the caller supplies/mutates.
+  `buildWayprintLayout` keeps producing the 3 defaults (Start/Finish/distance) as a separate
+  `defaultLabelRequests(route, preset)`-style function, but no longer owns "the" label set —
+  `placeLabels`/`LabelRequest`/`PlacedLabel`/`Rect` need no change (already generic over an
+  arbitrary list). Add a `PlacedLabel` id field if none exists yet (needed for add/remove by
+  identity rather than by index).
+  **Verify:** `./gradlew :feature:wayprint:domain:testAndroidHostTest`, `detekt`, `ktlintCheck`
+  pass.
+
+- [ ] **M10.2** — `core:storage`: replace `TrackMetadata.labelPositions: List<LabelPosition>` with
+  a `List<SavedLabel>` (id, text, x, y, anchor-as-string) carrying full label identity, not just a
+  positional override. No released users yet (same reasoning M9's shared context gave for not
+  migrating the pre-M9 draft file) — this is a breaking format change with no migration path, and
+  none is needed.
+  **Verify:** `./gradlew :core:storage:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+
+- [ ] **M10.3** — `feature:wayprint:ui`: `WayprintViewModel` gains `addLabel(x, y)` (creates a new
+  label with placeholder/editable text at that point — decide the actual text-entry UX at this
+  step: inline edit-on-tap vs. a dialog, following whichever's closer to `../wallosmobile`'s
+  existing text-entry precedent) and `removeLabel(id)`, both pushing an `EditSnapshot` onto the
+  existing undo stack same as drag/color-scheme edits. `WayprintScreen` gains the add/remove
+  affordance (e.g. long-press-canvas-to-add, a delete action on a selected label). Persistence
+  (`persistTrack()`) now round-trips the full `SavedLabel` list from M10.2, not positional
+  overrides.
+  **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+  Emulator check (`emulator-testing` skill): add a label, drag it, force-stop and relaunch — it's
+  still there at the dragged position; remove a label, relaunch — it's gone; undo restores a
+  just-removed label.
+
+## M11 — combine multiple tracks
+
+Builds a new persisted entity — a combined image backed by N existing tracks' GPX bytes — reusing
+M10's freeform labels for the combined image's defaults, editable exactly like a single track.
+Backlog item promoted to a milestone (2026-09-04, user-decided during investigation: persisted/
+re-editable, not a one-shot export; label set is freeform, defaulting to global Start/Finish
+rather than a fixed per-track or fixed-total set).
+
+Shared context:
+
+- Shared projection: `fitProjection` (`core:gpx`) already takes a flat `List<TrackPoint>` with no
+  per-track notion — feed it the concatenation of every combined track's points for one shared
+  bounding box/scale, then project each track's own points through that same `Projection` instance
+  for its individual path.
+- Per-track color: `dayPalette(n)` (`core:gpx`) already exists and has one caller today
+  (`StoryPreset.PRESET_COLOR_SCHEMES` — a fixed `dayPalette(5)` for the single-track picker, not
+  per-day/per-track coloring as `gpx_route_art.py` originally used it for). A combined image is a
+  second, distinct call site: `dayPalette(n)` with `n` = number of tracks in the combination, one
+  hue assigned per track's line.
+- New storage shape: today's `Track`/`TrackMetadata` (`core:storage`) is one GPX blob + one
+  `colorSchemeIndex` + one label set per id — no shape for "one id, N GPX sources." Decide at
+  M11.1 whether this is a new sibling type (e.g. `CombinedTrack`, its own subdirectory layout:
+  `directory/<id>/track-0.gpx`, `track-1.gpx`, ... + `metadata.json`) or a generalization of
+  `Track` itself to `gpxBlobs: List<ByteArray>` (single-track callers always passing a one-element
+  list) — the latter keeps one code path for both list/load/delete but touches every existing
+  `Track` call site; the former is more surgical but means `RecentsScreen` lists two different
+  entity types. Default to the sibling-type approach per CLAUDE.md's "surgical changes" agreement,
+  unless M11.1 finds real duplication pain that argues otherwise.
+- Default labels: on combining, seed the freeform set (M10) with just global Start (first track's
+  first point) / Finish (last track's last point) — not per-track Start/Finish, not a combined
+  distance label by default. Per-track distance/name labels are then something the user adds via
+  M10.3's `addLabel`, not auto-generated. This directly reflects the "define ourselves where and
+  what labels we want" decision — the defaults are a starting point, not a fixed set.
+
+- [ ] **M11.1** — `core:gpx`: add a multi-track projection helper (shared bounding box/scale over
+  N point-lists, each still projected individually) and confirm/document the `dayPalette(n)`
+  per-track-color call path. No change to `fitProjection`/`Projection` themselves may be needed if
+  the existing flat-list signature already covers it — confirm with a test using two
+  non-overlapping tracks before assuming so.
+  **Verify:** `./gradlew :core:gpx:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+
+- [ ] **M11.2** — `core:storage`: new combined-track persisted shape per the shared context above
+  (sibling type vs. `Track` generalization — decide here). `TracksStorage.list()` needs to surface
+  both single and combined tracks in one newest-first list for `RecentsScreen`.
+  **Verify:** `./gradlew :core:storage:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+
+- [ ] **M11.3** — `feature:wayprint:domain`: a `buildWayprintLayout`-equivalent for N tracks —
+  shared projection (M11.1) across all combined tracks' points, one path per track tagged with its
+  `dayPalette` color, default Start/Finish labels only (per shared context above).
+  **Verify:** `./gradlew :feature:wayprint:domain:testAndroidHostTest`, `detekt`, `ktlintCheck`
+  pass.
+
+- [ ] **M11.4** — `feature:wayprint:ui`: multi-select mode on `RecentsScreen` (long-press a row to
+  enter selection, check off N tracks, a "Combine" action) building the new entity via M11.2/M11.3;
+  `WayprintScreen`/`WayprintViewModel` render a combined track exactly like a single one (multiple
+  colored paths instead of one, freeform labels from M10.3 otherwise unchanged).
+  **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+  Emulator check (`emulator-testing` skill): select two tracks from Recents, combine — both routes
+  render in different colors sharing one projection, global Start/Finish are the only default
+  labels, add a per-track distance label manually, back-then-reopen preserves it; the combined
+  entry persists across force-stop/relaunch.
+
 ## Backlog (growth roadmap, not milestones yet)
 
 - More input sources: Health Connect / Strava OAuth import; on-device live recording (its own
@@ -1419,9 +1539,3 @@ Shared context for all of M9 (re-derive nothing below from scratch):
 - Multiple layout templates (poster, square post, story) once the story layout is proven —
   includes aspect-ratio picking, deferred out of M7.
 - iOS/Desktop targets for `core:gpx` and the Compose `Canvas` renderer.
-- Combining several GPX tracks into one image (2026-09-03, user-reported): open design
-  question, not scoped. `dayPalette()` (`core:gpx`, ported M1.3) already exists for per-track/
-  per-day coloring and has never had a caller — this is the feature that would finally use it.
-  Unresolved: how multiple tracks share one projection/scale (`fitProjection` today fits a
-  single track's own bounding box), whether it's one combined distance label or one per track,
-  and how label collision-avoidance behaves with 3x as many labels competing for space.
