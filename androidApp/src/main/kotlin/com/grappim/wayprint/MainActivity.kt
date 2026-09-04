@@ -10,20 +10,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.IntentCompat
+import com.grappim.wayprint.composeapp.PlatformFileHandle
 import com.grappim.wayprint.composeapp.WayprintAppContent
 
 /**
- * [pendingImportUri] carries a share/view-intent `Uri` (M5.2) into [WayprintAppContent], which
- * forwards it to `RecentsScreen`'s own `TracksStorage`-backed import (M9 replaced the single
- * `WayprintViewModel.loadFromUri` this used to call with the per-track import model).
+ * [pendingImportUri] carries a share/view-intent `Uri` (M5.2), wrapped as a [PlatformFileHandle],
+ * into [WayprintAppContent], which forwards it to `RecentsScreen`'s own `TracksStorage`-backed
+ * import (M9 replaced the single `WayprintViewModel.loadFromUri` this used to call with the
+ * per-track import model).
  */
 class MainActivity : ComponentActivity() {
-    private var pendingImportUri by mutableStateOf<Uri?>(null)
+    private var pendingImportUri by mutableStateOf<PlatformFileHandle?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        pendingImportUri = sharedOrViewedUri(intent)
+        pendingImportUri = sharedOrViewedUri(intent)?.let(::PlatformFileHandle)
         setContent {
             WayprintAppContent(
                 pendingImportUri = pendingImportUri,
@@ -35,7 +37,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        pendingImportUri = sharedOrViewedUri(intent)
+        pendingImportUri = sharedOrViewedUri(intent)?.let(::PlatformFileHandle)
     }
 
     private fun sharedOrViewedUri(intent: Intent): Uri? = when (intent.action) {

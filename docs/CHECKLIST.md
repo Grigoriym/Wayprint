@@ -1,7 +1,7 @@
 # Wayprint checklist
 
-**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1-M15.5 done,
-next is M15.6. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
+**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1-M15.6 done,
+next is M15.7. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
 and moving Android-only code out of `commonMain`) are complete and archived to
 `docs/CHECKLIST_ARCHIVE.md`. M15 is fully buildable/runnable/verifiable on this dev machine; M16
 adds iOS after M15 lands, but its verification is capped — this machine is Linux, so an iOS app
@@ -208,13 +208,29 @@ target half-wired and everything red, since each step still needs its own passin
   pre-M15.5 commit before concluding it was a real regression rather than a pre-existing look
   nobody had zoomed into.
 
-- [ ] **M15.6** — `composeApp`: replace the plumbing-only `android.net.Uri` in
+- [x] **M15.6** — `composeApp`: replace the plumbing-only `android.net.Uri` in
   `WayprintAppContent.kt`/`WayprintNavHost.kt`/`WayprintEntryProvider.kt` with an
   `expect class PlatformFileHandle` (Android `actual` wraps `Uri`; no behavior change on Android).
   These 3 files use `Uri` only as a pass-through type — once swapped, they have zero `android.*`
   imports and move back to `commonMain`.
   **Verify:** `./gradlew build`, `detekt`, `ktlintCheck` pass; full share/import flow still works
   identically on the emulator (M5.2's share-intent path, M13's Save/Share).
+  Note: `WayprintEntryProvider.kt`'s `wayprintEntry` is the one place that couldn't just swap its
+  `Uri` param and move — it directly calls `RecentsScreen`/`WayprintScreen`, both still
+  `androidMain`-only until M15.7, so `commonMain` code can never see them (KMP's source-set
+  hierarchy has no path from `commonMain` to a sibling platform source set, regardless of how
+  many targets are actually configured). Raised this to the user rather than silently descoping;
+  they chose to pull a piece of M15.7 forward now rather than leave `WayprintEntryProvider.kt` in
+  `androidMain`: `wayprintEntry` itself became `expect fun ... wayprintEntry(...)` in `commonMain`
+  with a new `WayprintEntryProvider.android.kt` `actual` (in `composeApp`'s `androidMain`) holding
+  the real `RecentsScreen`/`WayprintScreen` wiring and the `PlatformFileHandle` → `Uri` unwrap
+  (`pendingImportUri?.uri`). `MainActivity.kt` (`androidApp`, Android-only forever) now wraps its
+  `Uri` as `PlatformFileHandle(uri)` before handing it to `WayprintAppContent`. Verified on
+  `Medium_Phone_API_36.1`: both the in-app FAB→SAF-picker→template-dialog→edit-screen flow and a
+  real external `ACTION_VIEW` handoff (Files app's "Open with → Wayprint" on a `.gpx`, since a
+  synthesized `am start -a VIEW -d content://...` throws `SecurityException` without a real
+  grant — same class of issue as the `docs/frictions.md` M5.2 entries) landed on the
+  template-pick dialog and imported correctly, matching pre-refactor behavior.
 
 - [ ] **M15.7** — `feature:wayprint:ui` + `composeApp`: the real platform split for what's left —
   `WayprintViewModel`/`RecentsViewModel`'s `Context`/`MediaStore`/`FileProvider`/share `Intent`/

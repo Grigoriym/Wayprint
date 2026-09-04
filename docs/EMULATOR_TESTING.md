@@ -63,3 +63,12 @@ technique lives in the skill itself, not here — this file is only what's true 
   local storage state" note for why a plain `run-as cp` from `/sdcard` fails and the stdin-pipe
   workaround). Confirmed the app opens the resulting track normally, defaulting to the story
   preset. (M12.4, 2026-09-04.)
+- To verify a real external `ACTION_VIEW` handoff (not the in-app FAB/SAF-picker path above):
+  `am start -n com.google.android.documentsui/com.android.documentsui.LauncherActivity` opens
+  the standalone Files app (distinct from the in-app `ACTION_OPEN_DOCUMENT` picker), tap a
+  `.gpx` in Downloads, and its "Open with" chooser lists Wayprint (registered for
+  `application/gpx+xml`/`application/octet-stream` in the manifest) — tap it, then **Just once**.
+  Lands on Recents' template-pick dialog exactly like the FAB flow. A synthesized `am start -a
+  VIEW -d content://...` throws `SecurityException` even with `--grant-read-uri-permission`
+  (shell's own UID never held a grant to forward) — see the `emulator-testing` skill's write-up
+  of this technique for the generic version. (M15.6, 2026-09-04.)

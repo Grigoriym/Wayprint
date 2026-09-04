@@ -1,6 +1,5 @@
 package com.grappim.wayprint.composeapp
 
-import android.net.Uri
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -14,7 +13,7 @@ import com.grappim.wayprint.feature.wayprint.ui.list.RecentsRoute
 import com.grappim.wayprint.uikit.theme.WayprintTheme
 
 /**
- * [pendingImportUri] is `MainActivity`'s share/view-intent `Uri` (M5.2), forwarded down to
+ * [pendingImportUri] is `MainActivity`'s share/view-intent file handle (M5.2), forwarded down to
  * `RecentsScreen` (the only screen that owns a `TracksStorage`-backed import) rather than
  * imported here — a share arriving while [WayprintEditRoute][com.grappim.wayprint.feature.wayprint.ui.edit.WayprintEditRoute]
  * is on screen must first land back on Recents, since that is where the shared route becomes a
@@ -23,7 +22,7 @@ import com.grappim.wayprint.uikit.theme.WayprintTheme
 @Composable
 fun WayprintAppContent(
     modifier: Modifier = Modifier,
-    pendingImportUri: Uri? = null,
+    pendingImportUri: PlatformFileHandle? = null,
     clearPendingImport: () -> Unit = {}
 ) {
     WayprintTheme {

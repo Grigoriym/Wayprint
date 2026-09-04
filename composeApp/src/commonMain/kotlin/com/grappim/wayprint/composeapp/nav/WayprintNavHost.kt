@@ -1,6 +1,5 @@
 package com.grappim.wayprint.composeapp.nav
 
-import android.net.Uri
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
+import com.grappim.wayprint.composeapp.PlatformFileHandle
 import com.grappim.wayprint.composeapp.nav.entries.wayprintEntry
 import com.grappim.wayprint.core.navigation.NavigationState
 import com.grappim.wayprint.core.navigation.Navigator
@@ -23,7 +23,7 @@ fun WayprintNavHost(
     navigationState: NavigationState,
     navigator: Navigator,
     modifier: Modifier = Modifier,
-    pendingImportUri: Uri? = null,
+    pendingImportUri: PlatformFileHandle? = null,
     clearPendingImport: () -> Unit = {}
 ) {
     val entryProvider = entryProvider {
