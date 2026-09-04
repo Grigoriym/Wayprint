@@ -1,11 +1,5 @@
 package com.grappim.wayprint.feature.wayprint.ui.edit
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,12 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import com.grappim.wayprint.feature.wayprint.domain.ColorScheme
 import com.grappim.wayprint.feature.wayprint.domain.PRESET_COLOR_SCHEMES
 import com.grappim.wayprint.feature.wayprint.domain.STORY_PRESETS
@@ -62,6 +53,7 @@ import com.grappim.wayprint.feature.wayprint.domain.StoryPreset
 import com.grappim.wayprint.feature.wayprint.ui.CombinedWayprintCanvas
 import com.grappim.wayprint.feature.wayprint.ui.WayprintCanvas
 import com.grappim.wayprint.feature.wayprint.ui.parseHexColor
+import com.grappim.wayprint.feature.wayprint.ui.platform.rememberGatedSaveAction
 import com.grappim.wayprint.feature.wayprint.ui.renderCombinedWayprintStoryBitmap
 import com.grappim.wayprint.feature.wayprint.ui.renderWayprintStoryBitmap
 import kotlinx.coroutines.flow.collect
@@ -83,17 +75,10 @@ fun WayprintScreen(
     viewModel: WayprintViewModel = koinViewModel { parametersOf(trackId) }
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
     val textMeasurer = rememberTextMeasurer()
+    val gatedSave = rememberGatedSaveAction(viewModel::saveToGallery)
 
-    var pendingSaveBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var pendingAddPosition by remember { mutableStateOf<Pair<Double, Double>?>(null) }
-    val requestSavePermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) pendingSaveBitmap?.let(viewModel::saveToGallery)
-        pendingSaveBitmap = null
-    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(viewModel) {
@@ -106,18 +91,7 @@ fun WayprintScreen(
 
     fun saveCurrentLayout() {
         val currentLayout = layout ?: return
-        val bitmap = renderStoryBitmap(currentLayout, preset, uiState.colorSchemeIndex, textMeasurer)
-        val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            ) != PackageManager.PERMISSION_GRANTED
-        if (needsPermission) {
-            pendingSaveBitmap = bitmap
-            requestSavePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        } else {
-            viewModel.saveToGallery(bitmap)
-        }
+        gatedSave(renderStoryBitmap(currentLayout, preset, uiState.colorSchemeIndex, textMeasurer))
     }
 
     fun shareCurrentLayout() {
@@ -146,8 +120,10 @@ fun WayprintScreen(
                         IconButton(onClick = ::saveCurrentLayout) {
                             Icon(Icons.Filled.Save, contentDescription = "Save")
                         }
-                        IconButton(onClick = ::shareCurrentLayout) {
-                            Icon(Icons.Filled.Share, contentDescription = "Share")
+                        if (viewModel.supportsShare) {
+                            IconButton(onClick = ::shareCurrentLayout) {
+                                Icon(Icons.Filled.Share, contentDescription = "Share")
+                            }
                         }
                     }
                 }
@@ -237,18 +213,15 @@ private fun renderStoryBitmap(
     preset: StoryPreset,
     colorSchemeIndex: Int,
     textMeasurer: TextMeasurer
-): Bitmap {
-    val imageBitmap: ImageBitmap = when (layout) {
-        is EditableWayprintLayout.Single -> renderWayprintStoryBitmap(
-            layout.layout,
-            preset,
-            PRESET_COLOR_SCHEMES[colorSchemeIndex],
-            textMeasurer
-        )
+): ImageBitmap = when (layout) {
+    is EditableWayprintLayout.Single -> renderWayprintStoryBitmap(
+        layout.layout,
+        preset,
+        PRESET_COLOR_SCHEMES[colorSchemeIndex],
+        textMeasurer
+    )
 
-        is EditableWayprintLayout.Combined -> renderCombinedWayprintStoryBitmap(layout.layout, preset, textMeasurer)
-    }
-    return imageBitmap.asAndroidBitmap()
+    is EditableWayprintLayout.Combined -> renderCombinedWayprintStoryBitmap(layout.layout, preset, textMeasurer)
 }
 
 /** Prompts for a new freeform label's text (M10.3), confirming via [onConfirm] once it's non-blank. */

@@ -1,8 +1,5 @@
 package com.grappim.wayprint.feature.wayprint.ui.list
 
-import android.content.Context
-import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.grappim.wayprint.core.storage.CombinedTrackMetadata
@@ -12,6 +9,7 @@ import com.grappim.wayprint.core.storage.TracksStorage
 import com.grappim.wayprint.feature.wayprint.domain.STORY_PRESETS
 import com.grappim.wayprint.feature.wayprint.domain.buildCombinedWayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
+import com.grappim.wayprint.feature.wayprint.ui.platform.PlatformFileHandle
 import com.grappim.wayprint.feature.wayprint.ui.toSavedLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -22,22 +20,17 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.io.asSource
-import kotlinx.io.buffered
-import kotlinx.io.files.Path
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.io.Buffer
 import org.koin.core.annotation.KoinViewModel
-import java.io.ByteArrayInputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import kotlin.math.round
+import kotlin.time.Clock
+import kotlin.time.Instant
 
-/**
- * Takes [Context] straight, same precedent as [com.grappim.wayprint.feature.wayprint.ui.edit.WayprintViewModel].
- */
+/** [tracksStorage] is injected — its platform-resolved directory comes from [com.grappim.wayprint.core.storage.di.PlatformStorageModule]. */
 @KoinViewModel
-class RecentsViewModel(private val context: Context) : ViewModel() {
-
-    private val tracksStorage = TracksStorage(Path(context.filesDir.absolutePath))
+class RecentsViewModel(private val tracksStorage: TracksStorage) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RecentsUiState())
     val uiState: StateFlow<RecentsUiState> = _uiState.asStateFlow()
@@ -58,26 +51,24 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    /** Parses [uri], saves it as a new track under [storyPresetIndex], and emits the new id via [imported] for the caller to navigate on. */
-    fun importGpx(uri: Uri, storyPresetIndex: Int) {
+    /** Reads [handle], saves it as a new track under [storyPresetIndex], and emits the new id via [imported] for the caller to navigate on. */
+    fun importGpx(handle: PlatformFileHandle, storyPresetIndex: Int) {
         _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val gpxBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                        ?: error("Couldn't open $uri")
+                    val gpxBytes = handle.readBytes()
                     val preset = STORY_PRESETS[storyPresetIndex]
-                    val layout = ByteArrayInputStream(gpxBytes).asSource().buffered()
-                        .use { buildWayprintLayout(it, preset) }
-                    val id = System.currentTimeMillis().toString()
+                    val layout = buildWayprintLayout(Buffer().apply { write(gpxBytes) }, preset)
+                    val id = Clock.System.now().toEpochMilliseconds().toString()
                     tracksStorage.save(
                         id,
                         gpxBytes,
                         TrackMetadata(
                             labels = layout.labels.map { it.toSavedLabel() },
                             colorSchemeIndex = 0,
-                            displayName = resolveDisplayName(uri),
-                            importedAtEpochMillis = System.currentTimeMillis(),
+                            displayName = handle.displayName(),
+                            importedAtEpochMillis = Clock.System.now().toEpochMilliseconds(),
                             distanceKm = layout.totalDistanceKm,
                             storyPresetIndex = storyPresetIndex
                         )
@@ -138,16 +129,16 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
                     val tracks = ids.map { id -> tracksStorage.load(id) ?: error("Missing track $id") }
                     val gpxBlobs = tracks.map { it.gpxBytes }
                     val preset = STORY_PRESETS[storyPresetIndex]
-                    val inputs = gpxBlobs.map { ByteArrayInputStream(it).asSource().buffered() }
+                    val inputs = gpxBlobs.map { Buffer().apply { write(it) } }
                     val layout = buildCombinedWayprintLayout(inputs, preset)
-                    val id = System.currentTimeMillis().toString()
+                    val id = Clock.System.now().toEpochMilliseconds().toString()
                     tracksStorage.saveCombined(
                         id,
                         gpxBlobs,
                         CombinedTrackMetadata(
                             labels = layout.labels.map { it.toSavedLabel() },
                             displayName = tracks.joinToString(" + ") { it.metadata.displayName },
-                            importedAtEpochMillis = System.currentTimeMillis(),
+                            importedAtEpochMillis = Clock.System.now().toEpochMilliseconds(),
                             distanceKm = layout.totalDistanceKm,
                             storyPresetIndex = storyPresetIndex
                         )
@@ -166,23 +157,29 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    /** [OpenableColumns.DISPLAY_NAME] on [uri]; falls back for a share-intent `Uri` that has no such column. */
-    private fun resolveDisplayName(uri: Uri): String {
-        val name = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (nameIndex >= 0 && cursor.moveToFirst()) cursor.getString(nameIndex) else null
-        }
-        return name ?: "Untitled route"
-    }
-
-    private fun TrackListEntry.toUiItem(): RecentTrackUiItem {
-        val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-        return RecentTrackUiItem(
-            id = id,
-            displayName = displayName,
-            importedDate = dateFormat.format(Date(importedAtEpochMillis)),
-            distanceLabel = String.format(Locale.ROOT, "%.1f km", distanceKm),
-            isCombinable = this is TrackListEntry.Single
-        )
-    }
+    private fun TrackListEntry.toUiItem(): RecentTrackUiItem = RecentTrackUiItem(
+        id = id,
+        displayName = displayName,
+        importedDate = formatImportedDate(importedAtEpochMillis),
+        distanceLabel = formatDistanceKm(distanceKm),
+        isCombinable = this is TrackListEntry.Single
+    )
 }
+
+private val MONTH_NAMES = listOf(
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+)
+
+/** e.g. "Mar 5, 2026" — no `java.text.SimpleDateFormat`/`Locale`, neither portable past the JVM. */
+private fun formatImportedDate(epochMillis: Long): String {
+    val date = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault()).date
+    return "${MONTH_NAMES[date.month.ordinal]} ${date.day}, ${date.year}"
+}
+
+/** e.g. "12.3 km" — always non-negative here (an imported track's total distance), unlike domain's general-purpose formatter. */
+private fun formatDistanceKm(distanceKm: Double): String {
+    val tenths = round(distanceKm * DISTANCE_LABEL_SCALE).toLong()
+    return "${tenths / DISTANCE_LABEL_SCALE}.${tenths % DISTANCE_LABEL_SCALE} km"
+}
+
+private const val DISTANCE_LABEL_SCALE = 10L

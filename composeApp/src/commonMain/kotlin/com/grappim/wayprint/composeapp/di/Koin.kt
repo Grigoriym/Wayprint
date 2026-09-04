@@ -1,5 +1,6 @@
 package com.grappim.wayprint.composeapp.di
 
+import com.grappim.wayprint.core.storage.di.PlatformStorageModule
 import com.grappim.wayprint.feature.wayprint.ui.WayprintUiModule
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Configuration
@@ -17,8 +18,13 @@ expect class PlatformComponentModule
  * in this compilation with no `includes` list to maintain. A second target (iOS/Desktop, per root
  * CLAUDE.md's growth roadmap) needs an explicit `includes = [...]` here — TaigaMobileNova's
  * `KoinGraphTest` doc explains why the scan alone doesn't reach across an iOS Native compilation.
+ *
+ * [PlatformStorageModule] is `core:storage`'s own `@Configuration` module (provides
+ * [com.grappim.wayprint.core.storage.TracksStorage], M15.7) — a different Gradle module's package
+ * prefix than this scan's, so it needs the same explicit `includes` entry [WayprintUiModule]
+ * already gets, rather than relying on the scan to cross that boundary implicitly.
  */
-@Module(includes = [WayprintUiModule::class])
+@Module(includes = [WayprintUiModule::class, PlatformStorageModule::class])
 @Configuration
 @ComponentScan("com.grappim.wayprint.composeapp")
 class AppModule

@@ -1,10 +1,6 @@
 package com.grappim.wayprint.feature.wayprint.ui.edit
 
-import android.content.Context
-import android.content.Intent
-import android.graphics.Bitmap
-import android.provider.MediaStore
-import androidx.core.content.FileProvider
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.grappim.wayprint.core.storage.CombinedTrackMetadata
@@ -14,6 +10,7 @@ import com.grappim.wayprint.feature.wayprint.domain.STORY_PRESETS
 import com.grappim.wayprint.feature.wayprint.domain.buildCombinedWayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.placeNewLabel
+import com.grappim.wayprint.feature.wayprint.ui.platform.ImageExporter
 import com.grappim.wayprint.feature.wayprint.ui.toPlacedLabel
 import com.grappim.wayprint.feature.wayprint.ui.toSavedLabel
 import kotlinx.coroutines.Dispatchers
@@ -26,28 +23,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.io.asSource
-import kotlinx.io.buffered
-import kotlinx.io.files.Path
+import kotlinx.io.Buffer
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.io.FileOutputStream
+import kotlin.time.Clock
 
 /**
- * Takes [Context] straight (Koin's `androidContext()` registers it), same precedent as M4.3/M5's
- * shared context: this app has only one KMP target today, so platform APIs go directly in
- * `commonMain` rather than behind an expect/actual.
- *
  * [trackId] arrives through `parametersOf` at the call site — Koin's `verify()` whitelists
  * `String` on its own, so [InjectedParam] is here for the compiler plugin, which would otherwise
- * look for a `String` definition in the graph.
+ * look for a `String` definition in the graph. [tracksStorage]/[imageExporter] are both injected
+ * — the platform-specific pieces (storage directory, gallery/share/save-as) live behind
+ * [com.grappim.wayprint.core.storage.di.PlatformStorageModule]/[com.grappim.wayprint.feature.wayprint.ui.platform.PlatformUiModule].
  */
 @KoinViewModel
-class WayprintViewModel(@InjectedParam private val trackId: String, private val context: Context) : ViewModel() {
-
-    private val tracksStorage = TracksStorage(Path(context.filesDir.absolutePath))
+class WayprintViewModel(
+    @InjectedParam private val trackId: String,
+    private val tracksStorage: TracksStorage,
+    private val imageExporter: ImageExporter
+) : ViewModel() {
 
     /** The raw bytes and stored metadata the current [WayprintUiState.layout] was built from. */
     private var loadedTrack: LoadedTrack? = null
@@ -58,6 +51,9 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
     /** One-shot signal that [saveToGallery] finished, for the screen to show as a [Snackbar][androidx.compose.material3.Snackbar]. */
     private val _saveConfirmations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val saveConfirmations: SharedFlow<Unit> = _saveConfirmations.asSharedFlow()
+
+    /** Whether this platform has a real share surface — the screen hides the Share action when false. */
+    val supportsShare: Boolean = imageExporter.supportsShare
 
     init {
         loadTrack()
@@ -77,8 +73,7 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
                 if (single != null) {
                     runCatching {
                         val preset = STORY_PRESETS[single.metadata.storyPresetIndex]
-                        val layout = ByteArrayInputStream(single.gpxBytes).asSource().buffered()
-                            .use { buildWayprintLayout(it, preset) }
+                        val layout = buildWayprintLayout(Buffer().apply { write(single.gpxBytes) }, preset)
                         val labels = single.metadata.labels.map { it.toPlacedLabel() }
                         RestoredTrack(
                             loaded = LoadedTrack.Single(single.gpxBytes, single.metadata),
@@ -91,7 +86,7 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
                     val combined = tracksStorage.loadCombined(trackId) ?: return@withContext null
                     runCatching {
                         val preset = STORY_PRESETS[combined.metadata.storyPresetIndex]
-                        val inputs = combined.gpxBlobs.map { ByteArrayInputStream(it).asSource().buffered() }
+                        val inputs = combined.gpxBlobs.map { Buffer().apply { write(it) } }
                         val layout = buildCombinedWayprintLayout(inputs, preset)
                         val labels = combined.metadata.labels.map { it.toPlacedLabel() }
                         RestoredTrack(
@@ -141,7 +136,7 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
 
     /** Adds a new freeform label (M10.3) at ([x], [y]) with [text], undoable like drag/color-scheme edits. */
     fun addLabel(x: Double, y: Double, text: String) {
-        val id = System.currentTimeMillis().toString()
+        val id = Clock.System.now().toEpochMilliseconds().toString()
         _uiState.update { it.labelAdded(placeNewLabel(id = id, text = text, x = x, y = y)) }
         persistTrack()
     }
@@ -184,34 +179,17 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
         }
     }
 
-    /** Writes [bitmap] into the device gallery via `MediaStore`, a permanent save, then confirms via [saveConfirmations]. */
-    fun saveToGallery(bitmap: Bitmap) {
+    /** Persists [image] permanently via [ImageExporter.saveToGallery], then confirms via [saveConfirmations]. */
+    fun saveToGallery(image: ImageBitmap) {
         viewModelScope.launch(Dispatchers.IO) {
-            MediaStore.Images.Media.insertImage(
-                context.contentResolver,
-                bitmap,
-                "wayprint-${System.currentTimeMillis()}",
-                null
-            ) ?: return@launch
-            _saveConfirmations.emit(Unit)
+            if (imageExporter.saveToGallery(image)) _saveConfirmations.emit(Unit)
         }
     }
 
-    /** Shares [bitmap] via a temp file under `cacheDir` and a [FileProvider] URI — no `MediaStore` write. */
-    fun share(bitmap: Bitmap) {
+    /** Hands [image] to [ImageExporter.share]. Only called when [ImageExporter.supportsShare] is true. */
+    fun share(image: ImageBitmap) {
         viewModelScope.launch(Dispatchers.IO) {
-            val imagesDir = File(context.cacheDir, "images").apply { mkdirs() }
-            val file = File(imagesDir, "wayprint-${System.currentTimeMillis()}.png")
-            FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
-            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "image/png"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(
-                Intent.createChooser(shareIntent, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
+            imageExporter.share(image)
         }
     }
 }

@@ -8,11 +8,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
-import com.grappim.wayprint.composeapp.PlatformFileHandle
 import com.grappim.wayprint.composeapp.nav.entries.wayprintEntry
 import com.grappim.wayprint.core.navigation.NavigationState
 import com.grappim.wayprint.core.navigation.Navigator
 import com.grappim.wayprint.core.navigation.toEntries
+import com.grappim.wayprint.feature.wayprint.ui.platform.PlatformFileHandle
 
 /**
  * `../wallosmobile`'s `MainNavHost` shape, minus the drawer sections it has and this app doesn't

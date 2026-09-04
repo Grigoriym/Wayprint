@@ -1,7 +1,7 @@
 # Wayprint checklist
 
-**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1-M15.6 done,
-next is M15.7. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
+**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1-M15.7 done,
+next is M15.8. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
 and moving Android-only code out of `commonMain`) are complete and archived to
 `docs/CHECKLIST_ARCHIVE.md`. M15 is fully buildable/runnable/verifiable on this dev machine; M16
 adds iOS after M15 lands, but its verification is capped — this machine is Linux, so an iOS app
@@ -232,7 +232,7 @@ target half-wired and everything red, since each step still needs its own passin
   grant — same class of issue as the `docs/frictions.md` M5.2 entries) landed on the
   template-pick dialog and imported correctly, matching pre-refactor behavior.
 
-- [ ] **M15.7** — `feature:wayprint:ui` + `composeApp`: the real platform split for what's left —
+- [x] **M15.7** — `feature:wayprint:ui` + `composeApp`: the real platform split for what's left —
   `WayprintViewModel`/`RecentsViewModel`'s `Context`/`MediaStore`/`FileProvider`/share `Intent`/
   `ContentResolver` reads, and `WayprintScreen`/`RecentsScreen`'s pre-Android-Q permission check
   and `rememberLauncherForActivityResult` picker launcher. Design `expect`/`actual` interfaces for:
@@ -246,6 +246,72 @@ target half-wired and everything red, since each step still needs its own passin
   boundary (read/pick vs. save/share) rather than doing it half-done.
   **Verify:** `./gradlew build`, `detekt`, `ktlintCheck` pass; Android emulator check confirms
   zero behavior change (M5/M13's existing Verify points all still hold).
+  Note: didn't split at the read/pick vs. save/share boundary — both fit in one session.
+  `PlatformFileHandle` (M15.6) moved from `composeApp` down into `feature:wayprint:ui`'s
+  `platform` package, since `RecentsViewModel.importGpx` needed it as a parameter type and
+  `feature:wayprint:ui` can't depend on `composeApp` (dependency runs the other way);
+  `WayprintEntryProvider.kt` collapsed back from `expect`/`actual` to a plain `commonMain`
+  function now that both screens it wires are portable, undoing M15.6's forced split. New
+  `platform/` types: `PlatformFileHandle` (`readBytes()`/`displayName()`),
+  `rememberGpxPickerLauncher` (`@Composable expect fun` returning a launch lambda),
+  `ImageExporter` (`saveToGallery`/`share`/`supportsShare`), `rememberGatedSaveAction` (wraps a
+  save callback with Android's pre-Q permission dance; JVM's `actual` is just `= save`), and
+  `PlatformUiModule` (Koin `@Single fun provideImageExporter`, mirroring `core:storage`'s new
+  `PlatformStorageModule` for `TracksStorage`, which needed the same Context→Path treatment
+  Context itself was getting here). **Desktop's "what does Share mean" question, resolved**:
+  `ImageExporter.supportsShare` is `false` on JVM (no share-sheet equivalent exists), gating the
+  Share icon out of `WayprintScreen` entirely rather than faking one; JVM's `saveToGallery`
+  remaps to a native AWT `FileDialog` "Save As" (the only real desktop equivalent for both former
+  actions) and `share()` is unreachable dead code (`error(...)`) protected by that same UI gate.
+  **Scope grew beyond the checklist's literal Context/MediaStore/FileProvider/Intent list**:
+  moving `WayprintViewModel`/`RecentsViewModel`/`WayprintScreen`/`RecentsScreen` into
+  `commonMain` also exposed `System.currentTimeMillis()`, `java.text.SimpleDateFormat`,
+  `java.util.Locale`, and `java.io.ByteArrayInputStream` in code that used to compile only
+  because the *sole* KMP target was Android (`commonMain` never gets JVM-stdlib access in
+  Kotlin Multiplatform, matching M15.1-M15.4's precedent — a single-target project doesn't
+  relax this, confirmed the hard way by a real `compileAndroidMain` failure mid-step). Fixed
+  with `kotlin.time.Clock.System.now().toEpochMilliseconds()` (id/timestamp generation, per
+  `TaigaMobileNova`'s own precedent), a hand-rolled `formatImportedDate`/`formatDistanceKm` in
+  `RecentsViewModel.kt` (kotlinx-datetime's non-deprecated `LocalDate.month`/`.day`, not
+  `monthNumber`/`dayOfMonth`), and `kotlinx.io.Buffer().apply { write(gpxBytes) }` in place of
+  `ByteArrayInputStream(...).asSource().buffered()` (a plain `Buffer` already *is* a `Source`,
+  simpler than the old adapter chain, not just a portability workaround). `TracksStorage` also
+  needed a real Koin binding for the first time (previously constructed by hand from
+  `context.filesDir` inside each ViewModel) — `core:storage` gained the `wayprint.kmp.di`
+  plugin and a `PlatformStorageModule` (`@Single fun providePath`/`provideTracksStorage`,
+  JVM's using a ported `TaigaMobileNova/core/storage/platform/AppDataDir.jvm.kt`), explicitly
+  `includes`d into `composeApp`'s `AppModule` (a different Gradle module than its
+  `@ComponentScan` prefix covers, same reason `WayprintUiModule` needed it).
+  **A genuine Koin `verify()` gotcha, worth remembering for any future factory-provided
+  concrete-class `@Single`**: `KoinGraphTest` failed with "Missing definition for
+  '[field:'directory' - type:'kotlinx.io.files.Path']'" against a `@Single fun
+  provideTracksStorage(context: Context): TracksStorage = TracksStorage(Path(...))` factory —
+  `verify()` doesn't trace the factory *function's* parameters at all, it reflects on the
+  *returned type's own* real constructor (`TracksStorage(directory: Path)`) and demands that
+  be independently resolvable, regardless of how the factory actually builds the instance.
+  `ImageExporter`'s equivalent factory happened to pass verification only by coincidence — its
+  factory parameter and its class's real constructor parameter are both bare `Context`. Fixed
+  by splitting into two bindings (`providePath(context): Path` then
+  `provideTracksStorage(directory: Path): TracksStorage`) so the concrete class's real
+  constructor dependency has a real definition to find — confirmed by matching Taiga's own
+  `PlatformStorageModule` shape, where every factory-provided singleton binds to an *interface*
+  type instead (interfaces have no constructor for `verify()` to reflect on, sidestepping this
+  entirely) — a pattern to prefer over a bare-`Single`-fun-returning-a-concrete-class next time
+  one of these needs adding, rather than rediscovering this the hard way again.
+  Verified on `Medium_Phone_API_36.1` (pushed a temporary test GPX, fresh `pm clear`): (1) FAB →
+  `rememberGpxPickerLauncher` → SAF picker → template-pick dialog → edit screen, labels crisp
+  with no M15.5-style regression; (2) Save writes a real `MediaStore` row (confirmed in logcat)
+  and shows "Saved to gallery" with zero permission prompt on API 36 (`rememberGatedSaveAction`
+  correctly no-ops the pre-Q check); (3) Share opens the real Android share sheet via the
+  `FileProvider` URI (the chooser's own preview-loader `SecurityException`/`ImageLoader` warning
+  in logcat is the known-benign cosmetic one `docs/EMULATOR_TESTING.md` already documents, not a
+  real grant failure); (4) a real external `ACTION_VIEW` handoff (Files app → "Open with
+  Wayprint" → **Just once**) still lands on Recents' template-pick dialog and imports correctly.
+  `feature/wayprint/ui/src/jvmMain`'s new `platform/` actuals (picker, exporter, save-gate,
+  file-handle) and `core/storage/src/jvmMain`'s `PlatformStorageModule`/`AppDataDir.jvm.kt`
+  are **not yet compiled or run anywhere** — `jvm()` isn't a registered target until M15.8, per
+  this milestone's own sequencing rule, so they're unverified beyond being written until then
+  (same caveat M16's iOS steps already carry for their own targets).
 
 - [ ] **M15.8** — Build-logic: add `jvm()` to `configureKmp()` (`KmpConfiguration.kt`), mirroring
   `TaigaMobileNova/build-logic/.../KmpConfiguration.kt`'s `jvm()` line and its doc comment's own

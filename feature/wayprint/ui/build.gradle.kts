@@ -12,9 +12,14 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":feature:wayprint:domain"))
             implementation(project(":core:storage"))
+            implementation(libs.kotlinx.io.core)
+        }
+        androidMain.dependencies {
+            // Only the androidMain `platform/` actuals (picker/save-permission launchers,
+            // `FileProvider`/`ContentResolver`) need these — moved out of commonMain in M15.7
+            // once the code that used them there moved into androidMain.
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
-            implementation(libs.kotlinx.io.core)
         }
     }
 }

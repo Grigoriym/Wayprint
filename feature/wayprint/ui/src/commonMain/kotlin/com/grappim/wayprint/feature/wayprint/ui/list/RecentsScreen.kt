@@ -1,8 +1,5 @@
 package com.grappim.wayprint.feature.wayprint.ui.list
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +37,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.grappim.wayprint.feature.wayprint.ui.platform.PlatformFileHandle
+import com.grappim.wayprint.feature.wayprint.ui.platform.rememberGpxPickerLauncher
 import org.koin.compose.viewmodel.koinViewModel
 
 private val SCREEN_PADDING = 16.dp
@@ -50,7 +49,7 @@ private val ROW_VERTICAL_PADDING = 12.dp
 fun RecentsScreen(
     onTrackClick: (String) -> Unit,
     modifier: Modifier = Modifier,
-    pendingImportUri: Uri? = null,
+    pendingImportUri: PlatformFileHandle? = null,
     clearPendingImport: () -> Unit = {},
     viewModel: RecentsViewModel = koinViewModel()
 ) {
@@ -58,9 +57,7 @@ fun RecentsScreen(
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
     var pendingTemplatePick by remember { mutableStateOf<TemplatePickTarget?>(null) }
 
-    val pickGpx = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri != null) pendingTemplatePick = TemplatePickTarget.Import(uri)
-    }
+    val pickGpx = rememberGpxPickerLauncher { handle -> pendingTemplatePick = TemplatePickTarget.Import(handle) }
 
     LaunchedEffect(Unit) {
         viewModel.imported.collect { id -> onTrackClick(id) }
@@ -78,7 +75,7 @@ fun RecentsScreen(
         TemplatePickDialog(
             onSelect = { storyPresetIndex ->
                 when (templatePick) {
-                    is TemplatePickTarget.Import -> viewModel.importGpx(templatePick.uri, storyPresetIndex)
+                    is TemplatePickTarget.Import -> viewModel.importGpx(templatePick.handle, storyPresetIndex)
                     is TemplatePickTarget.Combine -> viewModel.combineSelected(storyPresetIndex)
                 }
                 pendingTemplatePick = null
@@ -136,7 +133,7 @@ fun RecentsScreen(
         floatingActionButton = {
             if (!uiState.isSelectionMode) {
                 ExtendedFloatingActionButton(
-                    onClick = { pickGpx.launch("*/*") },
+                    onClick = pickGpx,
                     icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                     text = { Text("Import GPX") }
                 )
@@ -183,11 +180,12 @@ fun RecentsScreen(
 
 /**
  * What a [TemplatePickDialog] choice is for — a fresh [Import] (share-intent or file-picker
- * `Uri`) or a [Combine] of the current selection. The picked `storyPresetIndex` (M12) is threaded
- * into [RecentsViewModel.importGpx]/[RecentsViewModel.combineSelected] once the user answers.
+ * handle) or a [Combine] of the current selection. The picked `storyPresetIndex` (M12) is
+ * threaded into [RecentsViewModel.importGpx]/[RecentsViewModel.combineSelected] once the user
+ * answers.
  */
 private sealed interface TemplatePickTarget {
-    data class Import(val uri: Uri) : TemplatePickTarget
+    data class Import(val handle: PlatformFileHandle) : TemplatePickTarget
     data object Combine : TemplatePickTarget
 }
 

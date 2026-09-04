@@ -10,8 +10,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.IntentCompat
-import com.grappim.wayprint.composeapp.PlatformFileHandle
 import com.grappim.wayprint.composeapp.WayprintAppContent
+import com.grappim.wayprint.feature.wayprint.ui.platform.PlatformFileHandle
 
 /**
  * [pendingImportUri] carries a share/view-intent `Uri` (M5.2), wrapped as a [PlatformFileHandle],
@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        pendingImportUri = sharedOrViewedUri(intent)?.let(::PlatformFileHandle)
+        pendingImportUri = sharedOrViewedUri(intent)?.let { PlatformFileHandle(it, this) }
         setContent {
             WayprintAppContent(
                 pendingImportUri = pendingImportUri,
@@ -37,7 +37,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        pendingImportUri = sharedOrViewedUri(intent)?.let(::PlatformFileHandle)
+        pendingImportUri = sharedOrViewedUri(intent)?.let { PlatformFileHandle(it, this) }
     }
 
     private fun sharedOrViewedUri(intent: Intent): Uri? = when (intent.action) {
