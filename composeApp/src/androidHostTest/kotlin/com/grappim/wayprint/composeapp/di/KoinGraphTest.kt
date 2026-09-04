@@ -11,6 +11,11 @@ import kotlin.test.Test
  *
  * `verify()` walks every definition's constructor by reflection and fails on a parameter type the
  * module set can't supply — without instantiating anything.
+ *
+ * Lives in `androidHostTest` rather than `commonTest` (M15.8): `EXTERNALLY_SUPPLIED` names
+ * `android.content.Context`, a type that only exists on the Android target's classpath — once
+ * `jvm()` became a real target, a `commonTest` copy of this file failed to compile for it. See
+ * `jvmTest/.../KoinGraphTest.kt` for the JVM target's equivalent, which needs no such type.
  */
 class KoinGraphTest {
 

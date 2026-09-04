@@ -29,10 +29,10 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
 
                     // `com.android.kotlin.multiplatform.library` creates no host-test
                     // compilation unless asked. Without this, `commonTest` belongs to no
-                    // compilation, the test dependencies from `configureTests()` are inert,
-                    // and there is no test task to run. The reference projects don't need it
-                    // because they get their test task from a `jvm()` target — Wayprint
-                    // is Android-only, so `testAndroidHostTest` is it.
+                    // Android compilation, the test dependencies from `configureTests()` are
+                    // inert for that target, and there is no `testAndroidHostTest` task to run
+                    // — `jvm()` (M15.8) gives `commonTest` a `jvmTest` task for free, but that
+                    // doesn't cover the Android target.
                     withHostTestBuilder {}.configure {
                         isReturnDefaultValues = true
                         isIncludeAndroidResources = true

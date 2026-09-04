@@ -9,15 +9,14 @@ private const val JDK_VERSION = 21
 /**
  * The single edit point for platform targets.
  *
- * Wayprint is Android-only for now, and the Android target itself is declared by
- * `com.android.kotlin.multiplatform.library` in `KmpLibraryConventionPlugin` — so this
- * function adds no targets at all. `jvm()`, `iosArm64()` and `iosSimulatorArm64()` go
- * here, and nowhere else, when those apps arrive.
+ * The Android target itself is declared by `com.android.kotlin.multiplatform.library` in
+ * `KmpLibraryConventionPlugin`. `jvm()` (Desktop, M15) is declared here; `iosArm64()`/
+ * `iosSimulatorArm64()` (M16) go here too, and nowhere else, when that target arrives.
  */
 fun Project.configureKmp() {
-    // Android-only, so `testAndroidHostTest` is the *only* source of coverage — unlike
-    // TaigaMobileNova, which disables instrumentation for the Android unit test tasks
-    // because it measures coverage on `jvmTest`.
+    // Android + JVM both have real host-test coverage now (`testAndroidHostTest`, `jvmTest`) —
+    // unlike TaigaMobileNova, which disables instrumentation for the Android unit test tasks
+    // because it measures coverage on `jvmTest` alone.
     pluginManager.apply("org.jetbrains.kotlinx.kover")
 
     extensions.configure<KotlinMultiplatformExtension> {
@@ -25,6 +24,8 @@ fun Project.configureKmp() {
         compilerOptions {
             freeCompilerArgs.add("-Xexpect-actual-classes")
         }
+
+        jvm()
 
         sourceSets.apply {
             commonMain.dependencies {
