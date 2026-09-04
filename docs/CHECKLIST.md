@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M9.3
+**Current step:** M9.4
 
 ## How to use this
 
@@ -1355,7 +1355,7 @@ Shared context for all of M9 (re-derive nothing below from scratch):
   return `null`/no-op rather than throwing.
   **Verify:** `./gradlew :core:storage:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
 
-- [ ] **M9.3** — `feature:wayprint:ui`: move `WayprintScreen`/`WayprintViewModel`/
+- [x] **M9.3** — `feature:wayprint:ui`: move `WayprintScreen`/`WayprintViewModel`/
   `WayprintUiState` into `edit/`, add `edit.WayprintEditRoute(val trackId: String) : NavKey`.
   `WayprintViewModel` takes `trackId` via `@InjectedParam`, loads that one track from
   `TracksStorage` (replacing `restoreDraft()`'s implicit single-draft load) and saves edits back

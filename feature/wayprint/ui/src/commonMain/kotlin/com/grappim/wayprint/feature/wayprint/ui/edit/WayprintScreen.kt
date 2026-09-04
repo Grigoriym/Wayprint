@@ -1,4 +1,4 @@
-package com.grappim.wayprint.feature.wayprint.ui
+package com.grappim.wayprint.feature.wayprint.ui.edit
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -18,8 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,6 +43,9 @@ import androidx.core.content.ContextCompat
 import com.grappim.wayprint.feature.wayprint.domain.ColorScheme
 import com.grappim.wayprint.feature.wayprint.domain.DEFAULT_STORY_PRESET
 import com.grappim.wayprint.feature.wayprint.domain.PRESET_COLOR_SCHEMES
+import com.grappim.wayprint.feature.wayprint.ui.WayprintCanvas
+import com.grappim.wayprint.feature.wayprint.ui.parseHexColor
+import com.grappim.wayprint.feature.wayprint.ui.renderWayprintStoryBitmap
 import org.koin.compose.viewmodel.koinViewModel
 
 private val SCREEN_PADDING = 16.dp
@@ -55,14 +56,14 @@ private val SWATCH_BORDER_UNSELECTED = 1.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WayprintScreen(modifier: Modifier = Modifier, viewModel: WayprintViewModel = koinViewModel()) {
+fun WayprintScreen(
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: WayprintViewModel = koinViewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val pickGpx = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) viewModel.loadFromUri(uri)
-    }
 
-    var showStartOverConfirm by remember { mutableStateOf(false) }
     var pendingExportBitmap by remember { mutableStateOf<Bitmap?>(null) }
     val requestExportPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -74,37 +75,14 @@ fun WayprintScreen(modifier: Modifier = Modifier, viewModel: WayprintViewModel =
     val layout = uiState.layout
     val error = uiState.error
 
-    if (showStartOverConfirm) {
-        AlertDialog(
-            onDismissRequest = { showStartOverConfirm = false },
-            title = { Text("Start over?") },
-            text = { Text("This discards your current route.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showStartOverConfirm = false
-                    viewModel.startOver()
-                }) {
-                    Text("Start over")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showStartOverConfirm = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
     Scaffold(
         modifier = modifier,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Wayprint") },
-                actions = {
-                    if (layout != null) {
-                        IconButton(onClick = { showStartOverConfirm = true }) {
-                            Icon(Icons.Filled.Refresh, contentDescription = "Start over")
-                        }
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -123,9 +101,6 @@ fun WayprintScreen(modifier: Modifier = Modifier, viewModel: WayprintViewModel =
                     verticalArrangement = Arrangement.spacedBy(SCREEN_PADDING)
                 ) {
                     Text(error)
-                    Button(onClick = { pickGpx.launch("*/*") }) {
-                        Text("Retry")
-                    }
                 }
 
                 layout != null -> Box(modifier = Modifier.fillMaxSize()) {
@@ -178,10 +153,6 @@ fun WayprintScreen(modifier: Modifier = Modifier, viewModel: WayprintViewModel =
                     ) {
                         Text("Export")
                     }
-                }
-
-                else -> Button(onClick = { pickGpx.launch("*/*") }) {
-                    Text("Import GPX")
                 }
             }
         }

@@ -1,4 +1,4 @@
-package com.grappim.wayprint.feature.wayprint.ui
+package com.grappim.wayprint.feature.wayprint.ui.edit
 
 import com.grappim.wayprint.feature.wayprint.domain.WayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.movedTo
