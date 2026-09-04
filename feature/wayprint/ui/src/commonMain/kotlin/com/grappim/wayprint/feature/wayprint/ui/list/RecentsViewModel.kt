@@ -5,8 +5,8 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.grappim.wayprint.core.storage.TrackListEntry
 import com.grappim.wayprint.core.storage.TrackMetadata
-import com.grappim.wayprint.core.storage.TrackSummary
 import com.grappim.wayprint.core.storage.TracksStorage
 import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
 import com.grappim.wayprint.feature.wayprint.ui.toSavedLabel
@@ -106,13 +106,13 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
         return name ?: "Untitled route"
     }
 
-    private fun TrackSummary.toUiItem(): RecentTrackUiItem {
+    private fun TrackListEntry.toUiItem(): RecentTrackUiItem {
         val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
         return RecentTrackUiItem(
             id = id,
-            displayName = metadata.displayName,
-            importedDate = dateFormat.format(Date(metadata.importedAtEpochMillis)),
-            distanceLabel = String.format(Locale.ROOT, "%.1f km", metadata.distanceKm)
+            displayName = displayName,
+            importedDate = dateFormat.format(Date(importedAtEpochMillis)),
+            distanceLabel = String.format(Locale.ROOT, "%.1f km", distanceKm)
         )
     }
 }

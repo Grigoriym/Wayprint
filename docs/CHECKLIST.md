@@ -1544,10 +1544,19 @@ Shared context:
   `dayPalette(n)` likewise needed no change, just a doc comment on `DayPalette.kt` naming the
   future combined-track call site alongside `StoryPreset`'s existing one.
 
-- [ ] **M11.2** — `core:storage`: new combined-track persisted shape per the shared context above
+- [x] **M11.2** — `core:storage`: new combined-track persisted shape per the shared context above
   (sibling type vs. `Track` generalization — decide here). `TracksStorage.list()` needs to surface
   both single and combined tracks in one newest-first list for `RecentsScreen`.
   **Verify:** `./gradlew :core:storage:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+  **Note:** sibling type per the default above — `CombinedTrackMetadata` mirrors `TrackMetadata`
+  minus `colorSchemeIndex` (per-track color comes from `dayPalette(n)` at M11.3's layout-build
+  time, not a stored/selected scheme). On disk, a track directory is disambiguated by its files,
+  not a stored type tag: `track.gpx` for single, `track-0.gpx`/`track-1.gpx`/... for combined —
+  `save`/`load` untouched, new `saveCombined`/`loadCombined`. `list()` now returns a sealed
+  `TrackListEntry` (`Single`/`Combined`) instead of `TrackSummary` (removed) so both kinds sort
+  into one newest-first list; `RecentsViewModel.toUiItem()` updated to the new type since it's
+  `list()`'s only caller — no new UI behavior, `RecentsScreen`'s multi-select/Combine action is
+  still M11.4.
 
 - [ ] **M11.3** — `feature:wayprint:domain`: a `buildWayprintLayout`-equivalent for N tracks —
   shared projection (M11.1) across all combined tracks' points, one path per track tagged with its

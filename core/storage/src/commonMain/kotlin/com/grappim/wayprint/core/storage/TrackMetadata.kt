@@ -20,5 +20,35 @@ data class TrackMetadata(
     val distanceKm: Double
 )
 
-/** A track's id plus its [TrackMetadata] — cheap to list, no GPX bytes. */
-data class TrackSummary(val id: String, val metadata: TrackMetadata)
+/**
+ * Everything about a combined track beyond its raw GPX bytes. Mirrors [TrackMetadata] minus
+ * [TrackMetadata.colorSchemeIndex]: a combined image's per-track line colors come from
+ * `dayPalette(n)` at layout-build time (one hue per track), not a user-selected scheme.
+ */
+@Serializable
+data class CombinedTrackMetadata(
+    val labels: List<SavedLabel>,
+    val displayName: String,
+    val importedAtEpochMillis: Long,
+    val distanceKm: Double
+)
+
+/** One row for [TracksStorage.list] — either kind of track, cheap to list, no GPX bytes. */
+sealed interface TrackListEntry {
+    val id: String
+    val displayName: String
+    val importedAtEpochMillis: Long
+    val distanceKm: Double
+
+    data class Single(override val id: String, val metadata: TrackMetadata) : TrackListEntry {
+        override val displayName get() = metadata.displayName
+        override val importedAtEpochMillis get() = metadata.importedAtEpochMillis
+        override val distanceKm get() = metadata.distanceKm
+    }
+
+    data class Combined(override val id: String, val metadata: CombinedTrackMetadata) : TrackListEntry {
+        override val displayName get() = metadata.displayName
+        override val importedAtEpochMillis get() = metadata.importedAtEpochMillis
+        override val distanceKm get() = metadata.distanceKm
+    }
+}
