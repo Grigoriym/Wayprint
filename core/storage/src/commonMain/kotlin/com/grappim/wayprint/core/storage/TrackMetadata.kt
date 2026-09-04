@@ -2,14 +2,18 @@ package com.grappim.wayprint.core.storage
 
 import kotlinx.serialization.Serializable
 
-/** One label's overridden position, in the same canvas-space units the layout it came from used. */
+/**
+ * One persisted label: its identity, text, canvas-space position, and anchor. [anchor] is stored
+ * as a plain string (matching `TextAnchor.name`) since `core:storage` has no dependency on
+ * `feature:wayprint:domain`, the same pattern [TrackMetadata.colorSchemeIndex] already uses.
+ */
 @Serializable
-data class LabelPosition(val x: Double, val y: Double)
+data class SavedLabel(val id: String, val text: String, val x: Double, val y: Double, val anchor: String)
 
-/** Everything about a track beyond its raw GPX bytes: label positions, styling, and list-row info. */
+/** Everything about a track beyond its raw GPX bytes: labels, styling, and list-row info. */
 @Serializable
 data class TrackMetadata(
-    val labelPositions: List<LabelPosition>,
+    val labels: List<SavedLabel>,
     val colorSchemeIndex: Int,
     val displayName: String,
     val importedAtEpochMillis: Long,

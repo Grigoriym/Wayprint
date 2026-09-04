@@ -16,7 +16,10 @@ class TracksStorageTest {
         importedAtEpochMillis: Long = 0L,
         distanceKm: Double = 0.0
     ) = TrackMetadata(
-        labelPositions = listOf(LabelPosition(1.5, 2.5), LabelPosition(3.0, 4.0)),
+        labels = listOf(
+            SavedLabel(id = "start", text = "Start", x = 1.5, y = 2.5, anchor = "START"),
+            SavedLabel(id = "finish", text = "Finish", x = 3.0, y = 4.0, anchor = "END")
+        ),
         colorSchemeIndex = colorSchemeIndex,
         displayName = displayName,
         importedAtEpochMillis = importedAtEpochMillis,

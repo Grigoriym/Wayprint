@@ -1463,7 +1463,7 @@ Shared context:
   matches M9.1–M9.4's pattern of leaving other modules broken until the milestone's UI step
   (M10.3) wires everything back together, not a regression to fix here.
 
-- [ ] **M10.2** — `core:storage`: replace `TrackMetadata.labelPositions: List<LabelPosition>` with
+- [x] **M10.2** — `core:storage`: replace `TrackMetadata.labelPositions: List<LabelPosition>` with
   a `List<SavedLabel>` (id, text, x, y, anchor-as-string) carrying full label identity, not just a
   positional override. No released users yet (same reasoning M9's shared context gave for not
   migrating the pre-M9 draft file) — this is a breaking format change with no migration path, and
