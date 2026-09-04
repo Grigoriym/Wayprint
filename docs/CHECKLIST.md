@@ -1,9 +1,9 @@
 # Wayprint checklist
 
-**Current step:** M12.4 done — M12 (second layout template) is fully complete. M0–M11 (the full
-MVP roadmap) are also complete — moved to `docs/CHECKLIST_ARCHIVE.md`. Release CI/publish was
-explicitly deferred by the user (keystores ready since M6.3) — pick that back up only when they
-say the app is ready to ship.
+**Current step:** M13 scoped and ready (declutter the edit toolbar, split Save/Share) — see below.
+M0–M12 (the full MVP roadmap plus the second layout template) are complete — M0–M11 moved to
+`docs/CHECKLIST_ARCHIVE.md`. Release CI/publish was explicitly deferred by the user (keystores
+ready since M6.3) — pick that back up only when they say the app is ready to ship.
 
 ## How to use this
 
@@ -163,6 +163,67 @@ Shared context:
   pipeline changes needed" was accurate for the pipeline functions' signatures, just not for
   which of their callers actually passed the non-default preset through.
 
+## M13 — Declutter the edit toolbar: split Save/Share, move global actions off the canvas
+
+Promoted from a design discussion in chat (2026-09-04, not a prior backlog item) after auditing
+`WayprintScreen.kt`: every canvas corner plus bottom-center is already occupied by a floating
+button (`TopEnd` color swatches, `BottomEnd` Add-label FAB, `TopStart` Undo (conditional),
+`BottomStart` Delete-label (conditional), `BottomCenter` Export) — no room is left for the next
+feature to add a button. On top of the clutter, `WayprintViewModel.exportAndShare()`
+(`edit/WayprintViewModel.kt:174-191`) has a real UX bug: it silently inserts the bitmap into
+`MediaStore` (a permanent save, no confirmation shown) *and* opens the share sheet, under one
+unlabeled "Export" button — sharing has an undisclosed save side-effect.
+
+Shared context:
+
+- Confirmed by grep: no `FileProvider`, no `<provider>` entry, and no `res/xml/` resource
+  directory exist anywhere in `androidApp` yet; no `SnackbarHost`/`Snackbar` exists anywhere in
+  the app either. Both are new plumbing this milestone introduces, not a rewire of something
+  already there.
+- Design split, matching the convention in apps like Google Photos' editor: **Save** writes the
+  bitmap into `MediaStore` (what `exportAndShare` already does) and confirms it happened; **Share**
+  renders to a temp file under `context.cacheDir`, gets a `content://` URI via `FileProvider`, and
+  opens the share sheet — with no `MediaStore` write, so sharing stops having an undisclosed
+  permanent save.
+- `TopAppBar`'s `actions` slot (Material3-standard; `WayprintScreen.kt:91-98` already has the bar,
+  currently empty of actions) is where Undo/Save/Share move to — a `Row` of `IconButton`s, not a
+  `DropdownMenu`/overflow. Don't build an empty overflow menu speculatively for a 3rd/4th future
+  action that doesn't exist yet (Simplicity First) — a `Row` is trivially extended with one more
+  `IconButton` when that day comes, no new infra required.
+- What stays put and why: the Add-label FAB (`BottomEnd`) and the selected-label Delete button
+  (`BottomStart`) are direct manipulation of canvas content, not global app actions — they don't
+  belong in the app bar and this milestone doesn't touch them. Color-scheme swatches (`TopEnd`)
+  also stay as-is — relocating them wasn't part of what was scoped here (no bottom-sheet/picker
+  precedent exists in this app to reuse) and isn't required to fix either the clutter or the
+  Save/Share bug; see Backlog below.
+- Undo's existing conditional visibility (`uiState.canUndo`) carries over unchanged, just
+  relocated from a floating `Button` to a `TopAppBar` `IconButton`.
+
+- [ ] **M13.1** — `feature:wayprint:ui`: split `WayprintViewModel.exportAndShare(bitmap)` into
+  `saveToGallery(bitmap)` (the existing `MediaStore.Images.Media.insertImage` call, unchanged,
+  plus a one-shot success signal the screen can show as a `Snackbar` — e.g. a buffered
+  `SharedFlow`) and `share(bitmap)` (writes the PNG to `context.cacheDir`, builds a `content://`
+  URI via `androidx.core.content.FileProvider`, launches the existing share `Intent` with that
+  URI, no `MediaStore` write). Add the `androidApp` manifest `<provider>` entry and
+  `res/xml/file_paths.xml` (`cache-path`) the `FileProvider` needs. `WayprintScreen`'s single
+  `Export` button becomes two buttons (still wherever's convenient for this step — button
+  *placement* is M13.2's job, not this one); wire a `SnackbarHost` in the `Scaffold` to show the
+  save confirmation.
+  **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+  Emulator check (`emulator-testing` skill): tapping Save shows a confirmation and creates exactly
+  one new `MediaStore` row (content query, same pattern as M5.2/M5.4's frictions); tapping Share
+  opens the share sheet and creates **no** new `MediaStore` row; sharing to another app succeeds
+  using the `FileProvider` URI (permission not denied).
+
+- [ ] **M13.2** — `feature:wayprint:ui`: move Undo, Save, and Share from floating `Button`s
+  (`TopStart`/`BottomCenter`) into `WayprintScreen`'s `TopAppBar` `actions`, per shared context.
+  `BottomStart`/`BottomEnd`/`TopEnd` overlays (Delete-label, Add-label FAB, color swatches) are
+  unchanged.
+  **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+  Emulator check: Undo only appears in the top bar when `canUndo`, same as before; Save/Share both
+  work identically to M13.1's verify from their new location; only the FAB, Delete-label (when a
+  label is selected), and color swatches remain as floating canvas overlays.
+
 ## Backlog (growth roadmap, not milestones yet)
 
 - More input sources: Health Connect / Strava OAuth import; on-device live recording (its own
@@ -172,3 +233,6 @@ Shared context:
   M12 template shares, M12's "constants don't need to scale" simplification (see M12 shared
   context) needs revisiting first.
 - iOS/Desktop targets for `core:gpx` and the Compose `Canvas` renderer.
+- Color-scheme swatches (and any future style pickers) currently float as a permanent `TopEnd`
+  overlay on the edit canvas — revisit if M13's toolbar decluttering makes that fixed position
+  feel inconsistent, or once a poster template adds more style choices to pick from.
