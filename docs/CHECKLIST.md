@@ -70,7 +70,7 @@ Shared context:
 - Undo's existing conditional visibility (`uiState.canUndo`) carries over unchanged, just
   relocated from a floating `Button` to a `TopAppBar` `IconButton`.
 
-- [ ] **M13.1** — `feature:wayprint:ui`: split `WayprintViewModel.exportAndShare(bitmap)` into
+- [x] **M13.1** — `feature:wayprint:ui`: split `WayprintViewModel.exportAndShare(bitmap)` into
   `saveToGallery(bitmap)` (the existing `MediaStore.Images.Media.insertImage` call, unchanged,
   plus a one-shot success signal the screen can show as a `Snackbar` — e.g. a buffered
   `SharedFlow`) and `share(bitmap)` (writes the PNG to `context.cacheDir`, builds a `content://`
@@ -85,6 +85,16 @@ Shared context:
   one new `MediaStore` row (content query, same pattern as M5.2/M5.4's frictions); tapping Share
   opens the share sheet and creates **no** new `MediaStore` row; sharing to another app succeeds
   using the `FileProvider` URI (permission not denied).
+  Note: the two buttons landed as a `Row` at `BottomCenter`, replacing the old single `Export`
+  button 1:1 — no other placement changed, per this step's own "placement is M13.2's job" scope.
+  Emulator check on `gplay debug`/`Medium_Phone_API_36.1`, all three points passed: Save's
+  "Saved to gallery" Snackbar showed and the `content://media/external/images/media` row count
+  went from 2 → 3 on one tap; Share's chooser opened with the count staying at 3, and picking a
+  real target (Messages) opened cleanly with zero exceptions. One logcat wrinkle worth flagging:
+  the chooser sheet's own preview-thumbnail loader (`com.android.intentresolver`) throws a
+  `SecurityException` reading the URI before a target is picked — cosmetic (no thumbnail, chooser
+  still lists apps and the picked target's own read succeeds), documented as a generic gotcha in
+  the `emulator-testing` skill rather than here.
 
 - [ ] **M13.2** — `feature:wayprint:ui`: move Undo, Save, and Share from floating `Button`s
   (`TopStart`/`BottomCenter`) into `WayprintScreen`'s `TopAppBar` `actions`, per shared context.

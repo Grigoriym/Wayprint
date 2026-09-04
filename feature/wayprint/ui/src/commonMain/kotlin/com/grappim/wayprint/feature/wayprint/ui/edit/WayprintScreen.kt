@@ -30,9 +30,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,11 +51,13 @@ import androidx.core.content.ContextCompat
 import com.grappim.wayprint.feature.wayprint.domain.ColorScheme
 import com.grappim.wayprint.feature.wayprint.domain.PRESET_COLOR_SCHEMES
 import com.grappim.wayprint.feature.wayprint.domain.STORY_PRESETS
+import com.grappim.wayprint.feature.wayprint.domain.StoryPreset
 import com.grappim.wayprint.feature.wayprint.ui.CombinedWayprintCanvas
 import com.grappim.wayprint.feature.wayprint.ui.WayprintCanvas
 import com.grappim.wayprint.feature.wayprint.ui.parseHexColor
 import com.grappim.wayprint.feature.wayprint.ui.renderCombinedWayprintStoryBitmap
 import com.grappim.wayprint.feature.wayprint.ui.renderWayprintStoryBitmap
+import kotlinx.coroutines.flow.collect
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -73,13 +78,18 @@ fun WayprintScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    var pendingExportBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var pendingSaveBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var pendingAddPosition by remember { mutableStateOf<Pair<Double, Double>?>(null) }
-    val requestExportPermission = rememberLauncherForActivityResult(
+    val requestSavePermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) pendingExportBitmap?.let(viewModel::exportAndShare)
-        pendingExportBitmap = null
+        if (granted) pendingSaveBitmap?.let(viewModel::saveToGallery)
+        pendingSaveBitmap = null
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(viewModel) {
+        viewModel.saveConfirmations.collect { snackbarHostState.showSnackbar("Saved to gallery") }
     }
 
     val layout = uiState.layout
@@ -87,6 +97,7 @@ fun WayprintScreen(
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Wayprint") },
@@ -169,37 +180,37 @@ fun WayprintScreen(
                             Text("Delete label")
                         }
                     }
-                    Button(
-                        onClick = {
-                            val bitmap = when (layout) {
-                                is EditableWayprintLayout.Single -> renderWayprintStoryBitmap(
-                                    layout.layout,
-                                    preset,
-                                    PRESET_COLOR_SCHEMES[uiState.colorSchemeIndex]
-                                )
-
-                                is EditableWayprintLayout.Combined -> renderCombinedWayprintStoryBitmap(
-                                    layout.layout,
-                                    preset
-                                )
-                            }
-                            val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
-                                ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                                ) != PackageManager.PERMISSION_GRANTED
-                            if (needsPermission) {
-                                pendingExportBitmap = bitmap
-                                requestExportPermission.launch(
-                                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                                )
-                            } else {
-                                viewModel.exportAndShare(bitmap)
-                            }
-                        },
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(SCREEN_PADDING)
+                    Row(
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(SCREEN_PADDING),
+                        horizontalArrangement = Arrangement.spacedBy(SCREEN_PADDING)
                     ) {
-                        Text("Export")
+                        Button(
+                            onClick = {
+                                val bitmap = renderStoryBitmap(layout, preset, uiState.colorSchemeIndex)
+                                val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                                    ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                    ) != PackageManager.PERMISSION_GRANTED
+                                if (needsPermission) {
+                                    pendingSaveBitmap = bitmap
+                                    requestSavePermission.launch(
+                                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                    )
+                                } else {
+                                    viewModel.saveToGallery(bitmap)
+                                }
+                            }
+                        ) {
+                            Text("Save")
+                        }
+                        Button(
+                            onClick = {
+                                viewModel.share(renderStoryBitmap(layout, preset, uiState.colorSchemeIndex))
+                            }
+                        ) {
+                            Text("Share")
+                        }
                     }
                     pendingAddPosition?.let { (x, y) ->
                         AddLabelDialog(
@@ -215,6 +226,18 @@ fun WayprintScreen(
         }
     }
 }
+
+/** Renders [layout] to a bitmap for Save/Share, dispatching on which [EditableWayprintLayout] kind it is. */
+private fun renderStoryBitmap(layout: EditableWayprintLayout, preset: StoryPreset, colorSchemeIndex: Int): Bitmap =
+    when (layout) {
+        is EditableWayprintLayout.Single -> renderWayprintStoryBitmap(
+            layout.layout,
+            preset,
+            PRESET_COLOR_SCHEMES[colorSchemeIndex]
+        )
+
+        is EditableWayprintLayout.Combined -> renderCombinedWayprintStoryBitmap(layout.layout, preset)
+    }
 
 /** Prompts for a new freeform label's text (M10.3), confirming via [onConfirm] once it's non-blank. */
 @Composable
