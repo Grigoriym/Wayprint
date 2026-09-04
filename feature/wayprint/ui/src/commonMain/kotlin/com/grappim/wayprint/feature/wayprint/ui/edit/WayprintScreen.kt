@@ -46,8 +46,10 @@ import androidx.core.content.ContextCompat
 import com.grappim.wayprint.feature.wayprint.domain.ColorScheme
 import com.grappim.wayprint.feature.wayprint.domain.DEFAULT_STORY_PRESET
 import com.grappim.wayprint.feature.wayprint.domain.PRESET_COLOR_SCHEMES
+import com.grappim.wayprint.feature.wayprint.ui.CombinedWayprintCanvas
 import com.grappim.wayprint.feature.wayprint.ui.WayprintCanvas
 import com.grappim.wayprint.feature.wayprint.ui.parseHexColor
+import com.grappim.wayprint.feature.wayprint.ui.renderCombinedWayprintStoryBitmap
 import com.grappim.wayprint.feature.wayprint.ui.renderWayprintStoryBitmap
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -110,18 +112,40 @@ fun WayprintScreen(
                 }
 
                 layout != null -> Box(modifier = Modifier.fillMaxSize()) {
-                    val colorScheme = PRESET_COLOR_SCHEMES[uiState.colorSchemeIndex]
-                    WayprintCanvas(
-                        layout = layout,
-                        preset = DEFAULT_STORY_PRESET,
-                        colorScheme = colorScheme,
-                        modifier = Modifier.fillMaxSize(),
-                        onDragStart = viewModel::onLabelDragStart,
-                        onDrag = viewModel::onLabelDragged,
-                        onDragEnd = viewModel::onLabelDragEnd,
-                        onLabelTap = viewModel::onLabelSelected,
-                        onCanvasLongPress = { x, y -> pendingAddPosition = x to y }
-                    )
+                    when (layout) {
+                        is EditableWayprintLayout.Single -> {
+                            WayprintCanvas(
+                                layout = layout.layout,
+                                preset = DEFAULT_STORY_PRESET,
+                                colorScheme = PRESET_COLOR_SCHEMES[uiState.colorSchemeIndex],
+                                modifier = Modifier.fillMaxSize(),
+                                onDragStart = viewModel::onLabelDragStart,
+                                onDrag = viewModel::onLabelDragged,
+                                onDragEnd = viewModel::onLabelDragEnd,
+                                onLabelTap = viewModel::onLabelSelected,
+                                onCanvasLongPress = { x, y -> pendingAddPosition = x to y }
+                            )
+                            ColorSchemeSwatches(
+                                schemes = PRESET_COLOR_SCHEMES,
+                                selectedIndex = uiState.colorSchemeIndex,
+                                onSelect = viewModel::onColorSchemeSelected,
+                                modifier = Modifier.align(Alignment.TopEnd).padding(SCREEN_PADDING)
+                            )
+                        }
+
+                        is EditableWayprintLayout.Combined -> {
+                            CombinedWayprintCanvas(
+                                layout = layout.layout,
+                                preset = DEFAULT_STORY_PRESET,
+                                modifier = Modifier.fillMaxSize(),
+                                onDragStart = viewModel::onLabelDragStart,
+                                onDrag = viewModel::onLabelDragged,
+                                onDragEnd = viewModel::onLabelDragEnd,
+                                onLabelTap = viewModel::onLabelSelected,
+                                onCanvasLongPress = { x, y -> pendingAddPosition = x to y }
+                            )
+                        }
+                    }
                     if (uiState.canUndo) {
                         Button(
                             onClick = viewModel::undo,
@@ -138,19 +162,20 @@ fun WayprintScreen(
                             Text("Delete label")
                         }
                     }
-                    ColorSchemeSwatches(
-                        schemes = PRESET_COLOR_SCHEMES,
-                        selectedIndex = uiState.colorSchemeIndex,
-                        onSelect = viewModel::onColorSchemeSelected,
-                        modifier = Modifier.align(Alignment.TopEnd).padding(SCREEN_PADDING)
-                    )
                     Button(
                         onClick = {
-                            val bitmap = renderWayprintStoryBitmap(
-                                layout,
-                                DEFAULT_STORY_PRESET,
-                                colorScheme
-                            )
+                            val bitmap = when (layout) {
+                                is EditableWayprintLayout.Single -> renderWayprintStoryBitmap(
+                                    layout.layout,
+                                    DEFAULT_STORY_PRESET,
+                                    PRESET_COLOR_SCHEMES[uiState.colorSchemeIndex]
+                                )
+
+                                is EditableWayprintLayout.Combined -> renderCombinedWayprintStoryBitmap(
+                                    layout.layout,
+                                    DEFAULT_STORY_PRESET
+                                )
+                            }
                             val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
                                 ContextCompat.checkSelfPermission(
                                     context,

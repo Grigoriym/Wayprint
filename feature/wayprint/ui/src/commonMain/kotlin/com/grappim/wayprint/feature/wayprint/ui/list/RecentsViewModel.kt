@@ -5,9 +5,11 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.grappim.wayprint.core.storage.CombinedTrackMetadata
 import com.grappim.wayprint.core.storage.TrackListEntry
 import com.grappim.wayprint.core.storage.TrackMetadata
 import com.grappim.wayprint.core.storage.TracksStorage
+import com.grappim.wayprint.feature.wayprint.domain.buildCombinedWayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
 import com.grappim.wayprint.feature.wayprint.ui.toSavedLabel
 import kotlinx.coroutines.Dispatchers
@@ -97,6 +99,63 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    /** Enters multi-select (M11.4) with just [id] selected — long-press on a combinable row. */
+    fun enterSelection(id: String) {
+        _uiState.update { it.copy(selectedIds = listOf(id)) }
+    }
+
+    /** Toggles [id]'s selection; appended to the end so [RecentsUiState.selectedIds] stays selection-ordered. */
+    fun toggleSelected(id: String) {
+        _uiState.update { state ->
+            val selected = if (id in state.selectedIds) state.selectedIds - id else state.selectedIds + id
+            state.copy(selectedIds = selected)
+        }
+    }
+
+    fun clearSelection() {
+        _uiState.update { it.copy(selectedIds = emptyList()) }
+    }
+
+    /**
+     * Builds a new combined track (M11) from the currently selected tracks' GPX bytes, in
+     * selection order, and emits its id via [imported] like a fresh import. A no-op below 2
+     * selected tracks — nothing to combine.
+     */
+    fun combineSelected() {
+        val ids = _uiState.value.selectedIds
+        if (ids.size < 2) return
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val tracks = ids.map { id -> tracksStorage.load(id) ?: error("Missing track $id") }
+                    val gpxBlobs = tracks.map { it.gpxBytes }
+                    val layout = buildCombinedWayprintLayout(gpxBlobs.map { ByteArrayInputStream(it) })
+                    val id = System.currentTimeMillis().toString()
+                    tracksStorage.saveCombined(
+                        id,
+                        gpxBlobs,
+                        CombinedTrackMetadata(
+                            labels = layout.labels.map { it.toSavedLabel() },
+                            displayName = tracks.joinToString(" + ") { it.metadata.displayName },
+                            importedAtEpochMillis = System.currentTimeMillis(),
+                            distanceKm = layout.totalDistanceKm
+                        )
+                    )
+                    id to tracksStorage.list().map { it.toUiItem() }
+                }
+            }
+            result
+                .onSuccess { (id, items) ->
+                    _uiState.update { it.copy(isLoading = false, tracks = items, selectedIds = emptyList()) }
+                    _imported.send(id)
+                }
+                .onFailure { e ->
+                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Couldn't combine those tracks") }
+                }
+        }
+    }
+
     /** [OpenableColumns.DISPLAY_NAME] on [uri]; falls back for a share-intent `Uri` that has no such column. */
     private fun resolveDisplayName(uri: Uri): String {
         val name = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
@@ -112,7 +171,8 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
             id = id,
             displayName = displayName,
             importedDate = dateFormat.format(Date(importedAtEpochMillis)),
-            distanceLabel = String.format(Locale.ROOT, "%.1f km", distanceKm)
+            distanceLabel = String.format(Locale.ROOT, "%.1f km", distanceKm),
+            isCombinable = this is TrackListEntry.Single
         )
     }
 }

@@ -26,6 +26,9 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.grappim.wayprint.feature.wayprint.domain.ColorScheme
+import com.grappim.wayprint.feature.wayprint.domain.CombinedWayprintLayout
+import com.grappim.wayprint.feature.wayprint.domain.PRESET_COLOR_SCHEMES
+import com.grappim.wayprint.feature.wayprint.domain.PlacedLabel
 import com.grappim.wayprint.feature.wayprint.domain.StoryPreset
 import com.grappim.wayprint.feature.wayprint.domain.TextAnchor
 import com.grappim.wayprint.feature.wayprint.domain.WayprintLayout
@@ -70,71 +73,8 @@ fun WayprintCanvas(
 
     Canvas(
         modifier = modifier
-            .pointerInput(preset) {
-                var draggedIndex = -1
-                var x = 0.0
-                var y = 0.0
-                val minTouchTargetPx = MIN_LABEL_TOUCH_TARGET.toPx()
-
-                fun currentFit() =
-                    fitScale(preset.canvasWidth, preset.canvasHeight, size.width.toDouble(), size.height.toDouble())
-
-                detectDragGestures(
-                    onDragStart = { start ->
-                        val fit = currentFit()
-                        val canvasX = (start.x - fit.offsetX) / fit.scale
-                        val canvasY = (start.y - fit.offsetY) / fit.scale
-                        val minSize = minTouchTargetPx / fit.scale
-                        draggedIndex = hitTestLabelIndex(currentLayout, canvasX, canvasY, minSize)
-                        if (draggedIndex >= 0) {
-                            val label = currentLayout.labels[draggedIndex]
-                            x = label.x
-                            y = label.y
-                            onDragStart()
-                        }
-                    },
-                    onDrag = { change, dragAmount ->
-                        if (draggedIndex >= 0) {
-                            change.consume()
-                            val fit = currentFit()
-                            x += dragAmount.x / fit.scale
-                            y += dragAmount.y / fit.scale
-                            onDrag(draggedIndex, x, y)
-                        }
-                    },
-                    onDragEnd = {
-                        if (draggedIndex >= 0) onDragEnd()
-                        draggedIndex = -1
-                    },
-                    onDragCancel = { draggedIndex = -1 }
-                )
-            }
-            .pointerInput(preset) {
-                val minTouchTargetPx = MIN_LABEL_TOUCH_TARGET.toPx()
-
-                fun currentFit() =
-                    fitScale(preset.canvasWidth, preset.canvasHeight, size.width.toDouble(), size.height.toDouble())
-
-                detectTapGestures(
-                    onTap = { position ->
-                        val fit = currentFit()
-                        val canvasX = (position.x - fit.offsetX) / fit.scale
-                        val canvasY = (position.y - fit.offsetY) / fit.scale
-                        val minSize = minTouchTargetPx / fit.scale
-                        val index = hitTestLabelIndex(currentLayout, canvasX, canvasY, minSize)
-                        onLabelTap(currentLayout.labels.getOrNull(index)?.id)
-                    },
-                    onLongPress = { position ->
-                        val fit = currentFit()
-                        val canvasX = (position.x - fit.offsetX) / fit.scale
-                        val canvasY = (position.y - fit.offsetY) / fit.scale
-                        val minSize = minTouchTargetPx / fit.scale
-                        if (hitTestLabelIndex(currentLayout, canvasX, canvasY, minSize) < 0) {
-                            onCanvasLongPress(canvasX, canvasY)
-                        }
-                    }
-                )
-            }
+            .wayprintDragGestures(preset, { currentLayout.labels }, onDragStart, onDrag, onDragEnd)
+            .wayprintTapGestures(preset, { currentLayout.labels }, onLabelTap, onCanvasLongPress)
     ) {
         val fit = fitScale(
             canvasWidth = preset.canvasWidth,
@@ -150,6 +90,134 @@ fun WayprintCanvas(
             drawWayprintStory(layout, preset, colorScheme)
         }
     }
+}
+
+/**
+ * [WayprintCanvas]'s N-track equivalent (M11.4): same fit/letterbox and label drag/tap gestures,
+ * drawing [CombinedWayprintLayout]'s per-track colored paths instead of one line. No user-selectable
+ * [ColorScheme] param — [colorScheme] only supplies the fixed background/text colors shared by every
+ * scheme; each track's line color comes from [CombinedWayprintLayout]'s own `ColoredPath.color`.
+ */
+@Composable
+fun CombinedWayprintCanvas(
+    layout: CombinedWayprintLayout,
+    preset: StoryPreset,
+    modifier: Modifier = Modifier,
+    colorScheme: ColorScheme = PRESET_COLOR_SCHEMES.first(),
+    onDragStart: () -> Unit = {},
+    onDrag: (index: Int, x: Double, y: Double) -> Unit = { _, _, _ -> },
+    onDragEnd: () -> Unit = {},
+    onLabelTap: (id: String?) -> Unit = {},
+    onCanvasLongPress: (x: Double, y: Double) -> Unit = { _, _ -> }
+) {
+    val currentLayout by rememberUpdatedState(layout)
+
+    Canvas(
+        modifier = modifier
+            .wayprintDragGestures(preset, { currentLayout.labels }, onDragStart, onDrag, onDragEnd)
+            .wayprintTapGestures(preset, { currentLayout.labels }, onLabelTap, onCanvasLongPress)
+    ) {
+        val fit = fitScale(
+            canvasWidth = preset.canvasWidth,
+            canvasHeight = preset.canvasHeight,
+            availableWidth = size.width.toDouble(),
+            availableHeight = size.height.toDouble()
+        )
+
+        withTransform({
+            translate(left = fit.offsetX.toFloat(), top = fit.offsetY.toFloat())
+            scale(scaleX = fit.scale.toFloat(), scaleY = fit.scale.toFloat(), pivot = Offset.Zero)
+        }) {
+            drawCombinedWayprintStory(layout, preset, colorScheme)
+        }
+    }
+}
+
+/**
+ * The label drag gesture shared by [WayprintCanvas]/[CombinedWayprintCanvas]: hit-tests
+ * [labels]() in canvas space (inverse-transformed through [preset]'s fit-scale), then reports the
+ * dragged label's running canvas-space position via [onDrag].
+ */
+@Composable
+private fun Modifier.wayprintDragGestures(
+    preset: StoryPreset,
+    labels: () -> List<PlacedLabel>,
+    onDragStart: () -> Unit,
+    onDrag: (index: Int, x: Double, y: Double) -> Unit,
+    onDragEnd: () -> Unit
+): Modifier = pointerInput(preset) {
+    var draggedIndex = -1
+    var x = 0.0
+    var y = 0.0
+    val minTouchTargetPx = MIN_LABEL_TOUCH_TARGET.toPx()
+
+    fun currentFit() = fitScale(preset.canvasWidth, preset.canvasHeight, size.width.toDouble(), size.height.toDouble())
+
+    detectDragGestures(
+        onDragStart = { start ->
+            val fit = currentFit()
+            val canvasX = (start.x - fit.offsetX) / fit.scale
+            val canvasY = (start.y - fit.offsetY) / fit.scale
+            val minSize = minTouchTargetPx / fit.scale
+            draggedIndex = hitTestLabelIndex(labels(), canvasX, canvasY, minSize)
+            if (draggedIndex >= 0) {
+                val label = labels()[draggedIndex]
+                x = label.x
+                y = label.y
+                onDragStart()
+            }
+        },
+        onDrag = { change, dragAmount ->
+            if (draggedIndex >= 0) {
+                change.consume()
+                val fit = currentFit()
+                x += dragAmount.x / fit.scale
+                y += dragAmount.y / fit.scale
+                onDrag(draggedIndex, x, y)
+            }
+        },
+        onDragEnd = {
+            if (draggedIndex >= 0) onDragEnd()
+            draggedIndex = -1
+        },
+        onDragCancel = { draggedIndex = -1 }
+    )
+}
+
+/**
+ * The label tap/long-press gesture shared by [WayprintCanvas]/[CombinedWayprintCanvas] — see
+ * [WayprintCanvas]'s doc for the tap-vs-drag/long-press-miss semantics.
+ */
+@Composable
+private fun Modifier.wayprintTapGestures(
+    preset: StoryPreset,
+    labels: () -> List<PlacedLabel>,
+    onLabelTap: (id: String?) -> Unit,
+    onCanvasLongPress: (x: Double, y: Double) -> Unit
+): Modifier = pointerInput(preset) {
+    val minTouchTargetPx = MIN_LABEL_TOUCH_TARGET.toPx()
+
+    fun currentFit() = fitScale(preset.canvasWidth, preset.canvasHeight, size.width.toDouble(), size.height.toDouble())
+
+    detectTapGestures(
+        onTap = { position ->
+            val fit = currentFit()
+            val canvasX = (position.x - fit.offsetX) / fit.scale
+            val canvasY = (position.y - fit.offsetY) / fit.scale
+            val minSize = minTouchTargetPx / fit.scale
+            val index = hitTestLabelIndex(labels(), canvasX, canvasY, minSize)
+            onLabelTap(labels().getOrNull(index)?.id)
+        },
+        onLongPress = { position ->
+            val fit = currentFit()
+            val canvasX = (position.x - fit.offsetX) / fit.scale
+            val canvasY = (position.y - fit.offsetY) / fit.scale
+            val minSize = minTouchTargetPx / fit.scale
+            if (hitTestLabelIndex(labels(), canvasX, canvasY, minSize) < 0) {
+                onCanvasLongPress(canvasX, canvasY)
+            }
+        }
+    )
 }
 
 /**
@@ -198,6 +266,64 @@ fun DrawScope.drawWayprintStory(layout: WayprintLayout, preset: StoryPreset, col
         center = Offset(finishX.toFloat(), finishY.toFloat())
     )
 
+    drawWayprintLabels(layout.labels, backgroundColor, textColor)
+}
+
+/**
+ * [drawWayprintStory]'s N-track equivalent (M11.4): same background/marker/label treatment, one
+ * stroked polyline per [CombinedWayprintLayout.tracks] entry in its own `ColoredPath.color`; the
+ * global Start/Finish markers are colored with the first/last track's color respectively, matching
+ * [defaultCombinedLabelRequests][com.grappim.wayprint.feature.wayprint.domain.defaultCombinedLabelRequests]'s
+ * global-Start/global-Finish semantics. [colorScheme]'s `lineColor` is unused — only its fixed
+ * background/text colors apply.
+ */
+fun DrawScope.drawCombinedWayprintStory(layout: CombinedWayprintLayout, preset: StoryPreset, colorScheme: ColorScheme) {
+    val backgroundColor = parseHexColor(colorScheme.backgroundColor)
+    val textColor = parseHexColor(colorScheme.textColor)
+
+    drawRect(
+        color = backgroundColor,
+        size = Size(preset.canvasWidth.toFloat(), preset.canvasHeight.toFloat())
+    )
+
+    layout.tracks.forEach { track ->
+        val routePath = Path().apply {
+            track.path.forEachIndexed { index, (x, y) ->
+                if (index == 0) moveTo(x.toFloat(), y.toFloat()) else lineTo(x.toFloat(), y.toFloat())
+            }
+        }
+        drawPath(
+            path = routePath,
+            color = parseHexColor(track.color),
+            style = Stroke(width = ROUTE_LINE_WIDTH, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+    }
+
+    val firstTrack = layout.tracks.first()
+    val (startX, startY) = firstTrack.path.first()
+    val startColor = parseHexColor(firstTrack.color)
+    val startCenter = Offset(startX.toFloat(), startY.toFloat())
+    drawCircle(color = backgroundColor, radius = START_MARKER_RADIUS, center = startCenter)
+    drawCircle(
+        color = startColor,
+        radius = START_MARKER_RADIUS,
+        center = startCenter,
+        style = Stroke(width = MARKER_STROKE_WIDTH)
+    )
+
+    val lastTrack = layout.tracks.last()
+    val (finishX, finishY) = lastTrack.path.last()
+    drawCircle(
+        color = parseHexColor(lastTrack.color),
+        radius = FINISH_MARKER_RADIUS,
+        center = Offset(finishX.toFloat(), finishY.toFloat())
+    )
+
+    drawWayprintLabels(layout.labels, backgroundColor, textColor)
+}
+
+/** The halo-then-fill label text drawing shared by [drawWayprintStory]/[drawCombinedWayprintStory]. */
+private fun DrawScope.drawWayprintLabels(labels: List<PlacedLabel>, backgroundColor: Color, textColor: Color) {
     val haloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = LABEL_HALO_WIDTH
@@ -210,7 +336,7 @@ fun DrawScope.drawWayprintStory(layout: WayprintLayout, preset: StoryPreset, col
         textSize = LABEL_TEXT_SIZE
         color = textColor.toArgb()
     }
-    layout.labels.forEach { label ->
+    labels.forEach { label ->
         val align = label.anchor.toPaintAlign()
         haloPaint.textAlign = align
         fillPaint.textAlign = align
@@ -241,15 +367,35 @@ fun renderWayprintStoryBitmap(layout: WayprintLayout, preset: StoryPreset, color
     return bitmap
 }
 
+/** [renderWayprintStoryBitmap]'s N-track equivalent (M11.4), headless-rendering [drawCombinedWayprintStory]. */
+fun renderCombinedWayprintStoryBitmap(
+    layout: CombinedWayprintLayout,
+    preset: StoryPreset,
+    colorScheme: ColorScheme = PRESET_COLOR_SCHEMES.first()
+): Bitmap {
+    val width = preset.canvasWidth.toInt()
+    val height = preset.canvasHeight.toInt()
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    CanvasDrawScope().draw(
+        density = Density(density = 1f),
+        layoutDirection = LayoutDirection.Ltr,
+        canvas = androidx.compose.ui.graphics.Canvas(android.graphics.Canvas(bitmap)),
+        size = Size(preset.canvasWidth.toFloat(), preset.canvasHeight.toFloat())
+    ) {
+        drawCombinedWayprintStory(layout, preset, colorScheme)
+    }
+    return bitmap
+}
+
 /**
- * The last (topmost-drawn) label in [layout] whose touch-friendly [labelTouchRect] contains
- * ([x], [y]) in canvas space, or -1 if none does. Shared by [WayprintCanvas]'s drag and tap/
- * long-press gesture detectors so both hit-test the same way.
+ * The last (topmost-drawn) label in [labels] whose touch-friendly [labelTouchRect] contains
+ * ([x], [y]) in canvas space, or -1 if none does. Shared by [WayprintCanvas]/[CombinedWayprintCanvas]'s
+ * drag and tap/long-press gesture detectors so both hit-test the same way.
  */
-private fun hitTestLabelIndex(layout: WayprintLayout, x: Double, y: Double, minSize: Double): Int {
+private fun hitTestLabelIndex(labels: List<PlacedLabel>, x: Double, y: Double, minSize: Double): Int {
     val touchTestPaint = Paint().apply { textSize = LABEL_TEXT_SIZE }
     val metrics = touchTestPaint.fontMetrics
-    return layout.labels.indexOfLast { label ->
+    return labels.indexOfLast { label ->
         val touchRect = labelTouchRect(
             x = label.x,
             y = label.y,

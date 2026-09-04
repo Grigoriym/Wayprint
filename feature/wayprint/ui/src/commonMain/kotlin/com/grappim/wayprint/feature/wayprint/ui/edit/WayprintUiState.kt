@@ -1,17 +1,18 @@
 package com.grappim.wayprint.feature.wayprint.ui.edit
 
 import com.grappim.wayprint.feature.wayprint.domain.PlacedLabel
-import com.grappim.wayprint.feature.wayprint.domain.WayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.movedTo
 
 /**
  * Same flags-on-one-data-class shape as `../wallosmobile`'s `UiState`s (e.g.
  * `CurrenciesUiState`), not a sealed hierarchy — `Empty` is the all-defaults case (no
- * `isLoading`, no `layout`, no `error`).
+ * `isLoading`, no `layout`, no `error`). [layout] is [EditableWayprintLayout] (M11.4) so the same
+ * state/edits work for a single or a combined track; [colorSchemeIndex] only applies to a
+ * [EditableWayprintLayout.Single] — a combined track's per-track colors aren't user-selectable.
  */
 data class WayprintUiState(
     val isLoading: Boolean = false,
-    val layout: WayprintLayout? = null,
+    val layout: EditableWayprintLayout? = null,
     val error: String? = null,
     val colorSchemeIndex: Int = 0,
     val undoStack: List<EditSnapshot> = emptyList(),
@@ -22,7 +23,7 @@ data class WayprintUiState(
 }
 
 /** One undoable edit's pre-change state: both the layout and the color-scheme selection. */
-data class EditSnapshot(val layout: WayprintLayout, val colorSchemeIndex: Int)
+data class EditSnapshot(val layout: EditableWayprintLayout, val colorSchemeIndex: Int)
 
 /** Remembers the current layout/scheme as the pre-drag snapshot a drag gesture may later undo. */
 fun WayprintUiState.dragStarted(): WayprintUiState {
@@ -34,7 +35,7 @@ fun WayprintUiState.dragStarted(): WayprintUiState {
 fun WayprintUiState.labelMoved(index: Int, x: Double, y: Double): WayprintUiState {
     val current = layout ?: return this
     val labels = current.labels.toMutableList().apply { this[index] = this[index].movedTo(x, y) }
-    return copy(layout = current.copy(labels = labels))
+    return copy(layout = current.withLabels(labels))
 }
 
 /** Ends a drag gesture, pushing the pre-drag snapshot captured by [dragStarted] onto the undo stack. */
@@ -64,7 +65,7 @@ fun WayprintUiState.labelAdded(label: PlacedLabel): WayprintUiState {
     val current = layout ?: return this
     return copy(
         undoStack = undoStack + EditSnapshot(current, colorSchemeIndex),
-        layout = current.copy(labels = current.labels + label)
+        layout = current.withLabels(current.labels + label)
     )
 }
 
@@ -77,7 +78,7 @@ fun WayprintUiState.labelRemoved(id: String): WayprintUiState {
     if (current.labels.none { it.id == id }) return this
     return copy(
         undoStack = undoStack + EditSnapshot(current, colorSchemeIndex),
-        layout = current.copy(labels = current.labels.filterNot { it.id == id }),
+        layout = current.withLabels(current.labels.filterNot { it.id == id }),
         selectedLabelId = null
     )
 }

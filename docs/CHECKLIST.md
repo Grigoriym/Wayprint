@@ -1575,7 +1575,7 @@ Shared context:
   is the caller's job, same pattern `RecentsViewModel`/`WayprintViewModel` already use for single
   tracks (M11.4).
 
-- [ ] **M11.4** — `feature:wayprint:ui`: multi-select mode on `RecentsScreen` (long-press a row to
+- [x] **M11.4** — `feature:wayprint:ui`: multi-select mode on `RecentsScreen` (long-press a row to
   enter selection, check off N tracks, a "Combine" action) building the new entity via M11.2/M11.3;
   `WayprintScreen`/`WayprintViewModel` render a combined track exactly like a single one (multiple
   colored paths instead of one, freeform labels from M10.3 otherwise unchanged).
@@ -1584,6 +1584,32 @@ Shared context:
   render in different colors sharing one projection, global Start/Finish are the only default
   labels, add a per-track distance label manually, back-then-reopen preserves it; the combined
   entry persists across force-stop/relaunch.
+  **Note:** only a single track (`TrackListEntry.Single`) is selectable/combinable —
+  `RecentTrackUiItem.isCombinable` hides the checkbox on an already-combined row and long-press is
+  a no-op there, since M11's shared context never resolved a semantics for flattening a combined
+  track's own N blobs into a further combination. `RecentsViewModel` tracks `selectedIds` as an
+  ordered `List<String>` (selection order, not display order) since that order becomes the global
+  Start/Finish tracks; `combineSelected()` reuses the existing `imported` channel to navigate to
+  the new id, same as a fresh GPX import. `WayprintViewModel`/`WayprintUiState` gained
+  `EditableWayprintLayout` (new file), a sealed `Single`/`Combined` wrapper around
+  `WayprintLayout`/`CombinedWayprintLayout` so the same undo/drag/add/remove-label state machine
+  edits either kind's `labels` uninvolved with which one it is — only drawing dispatches on the
+  sealed type. `loadTrack()` tries `TracksStorage.load` first, falls back to `loadCombined` on a
+  miss (disambiguated on disk per M11.2, no stored type tag) via a new private `LoadedTrack`
+  sealed type mirroring it for `persistTrack()`. `WayprintCanvas.kt` gained `CombinedWayprintCanvas`
+  + `drawCombinedWayprintStory` + `renderCombinedWayprintStoryBitmap` mirroring the single-track
+  ones — global Start/Finish markers colored with the first/last track's own color; the gesture gap
+  hit-test refactored into two shared `Modifier` extensions
+  (`wayprintDragGestures`/`wayprintTapGestures`) and `hitTestLabelIndex(labels: List<PlacedLabel>, ...)`
+  (was `(layout: WayprintLayout, ...)`) so both canvases hit-test identically without duplicating the
+  gesture code. Unit tests/detekt/ktlint all pass (`WayprintUiStateTest` updated to wrap its fixture
+  in `EditableWayprintLayout.Single`). Emulator check confirmed (`Medium_Phone_API_36.1`, `gplay`
+  debug build): imported two distinct GPX tracks, long-pressed one to enter selection, selected the
+  second, combined — landed on the new combined entry's edit screen with two differently-colored
+  paths sharing one projection and only global Start/Finish labels (no swatches, since a combined
+  track has no user-selectable scheme); added a distance label by long-pressing empty canvas;
+  back-then-reopen and a force-stop/relaunch both preserved the manually-added label and the
+  combined entry itself.
 
 ## Backlog (growth roadmap, not milestones yet)
 

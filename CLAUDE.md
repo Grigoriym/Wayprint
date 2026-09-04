@@ -231,6 +231,7 @@ Weighed and declined — don't re-propose these.
 | Health Connect / Strava OAuth import, on-device recording | GPX file only (file picker / share-intent) | Deferred past MVP; on-device recording in particular turns this into a tracking app, a much bigger scope jump. |
 | `KmpNetworkConventionPlugin` (ported from `wallosmobile`'s `build-logic`) | Skipped entirely | No network in MVP (IMPLEMENTATION_PLAN.md §4). |
 | `Context`/DataStore-based `core:storage` (M7.4 draft persistence) | A `File`-based `DraftStorage(directory: File)`, given `context.filesDir` by its caller | Keeps `core:storage` free of any Android dependency — no DI, no fake needed for tests, matches `core:gpx`'s "pure Kotlin, no Android deps" precedent even though the module compiles Android-only today. |
+| Generalizing `WayprintLayout`/`CombinedWayprintLayout` into one domain type so `WayprintScreen`/`WayprintViewModel` could share edit logic (M11.4) | A UI-layer-only sealed `EditableWayprintLayout` (`Single`/`Combined`) wrapping whichever domain type, exposing just `labels`/`totalDistanceKm`/`withLabels` | Domain sibling types (M11.1-M11.3) stay untouched and single-purpose; the undo/drag/add/remove-label state machine (`WayprintUiState`) becomes layout-agnostic through the wrapper, and only drawing (`WayprintCanvas` vs `CombinedWayprintCanvas`) dispatches on which kind it actually is. Reusable pattern for any future milestone that adds another track-like sibling type needing the same shared edit state. |
 
 ## Reference projects
 

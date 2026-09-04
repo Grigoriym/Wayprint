@@ -7,8 +7,10 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.grappim.wayprint.core.storage.CombinedTrackMetadata
 import com.grappim.wayprint.core.storage.TrackMetadata
 import com.grappim.wayprint.core.storage.TracksStorage
+import com.grappim.wayprint.feature.wayprint.domain.buildCombinedWayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.placeNewLabel
 import com.grappim.wayprint.feature.wayprint.ui.toPlacedLabel
@@ -39,8 +41,7 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
     private val tracksStorage = TracksStorage(context.filesDir)
 
     /** The raw bytes and stored metadata the current [WayprintUiState.layout] was built from. */
-    private var trackGpxBytes: ByteArray? = null
-    private var trackMetadata: TrackMetadata? = null
+    private var loadedTrack: LoadedTrack? = null
 
     private val _uiState = MutableStateFlow(WayprintUiState())
     val uiState: StateFlow<WayprintUiState> = _uiState.asStateFlow()
@@ -49,33 +50,47 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
         loadTrack()
     }
 
-    /** Loads [trackId]'s persisted track, reapplying its label overrides/scheme onto a fresh layout. */
+    /**
+     * Loads [trackId]'s persisted track, reapplying its label overrides/scheme onto a fresh
+     * layout. [trackId] may name either a single track ([TracksStorage.load]) or a combined one
+     * ([TracksStorage.loadCombined]) — on-disk shape decides, per [TracksStorage]'s own docs — so
+     * a single track is tried first and a combined one only on a miss.
+     */
     private fun loadTrack() {
         _uiState.value = WayprintUiState(isLoading = true)
         viewModelScope.launch {
             val restored = withContext(Dispatchers.IO) {
-                val track = tracksStorage.load(trackId) ?: return@withContext null
-                runCatching {
-                    val layout = ByteArrayInputStream(track.gpxBytes).use { buildWayprintLayout(it) }
-                    val labels = track.metadata.labels.map { it.toPlacedLabel() }
-                    Triple(
-                        track.gpxBytes,
-                        track.metadata,
-                        WayprintUiState(
-                            layout = layout.copy(labels = labels),
-                            colorSchemeIndex = track.metadata.colorSchemeIndex
+                val single = tracksStorage.load(trackId)
+                if (single != null) {
+                    runCatching {
+                        val layout = ByteArrayInputStream(single.gpxBytes).use { buildWayprintLayout(it) }
+                        val labels = single.metadata.labels.map { it.toPlacedLabel() }
+                        Triple(
+                            LoadedTrack.Single(single.gpxBytes, single.metadata),
+                            single.metadata.colorSchemeIndex,
+                            EditableWayprintLayout.Single(layout.copy(labels = labels))
                         )
-                    )
-                }.getOrNull()
+                    }.getOrNull()
+                } else {
+                    val combined = tracksStorage.loadCombined(trackId) ?: return@withContext null
+                    runCatching {
+                        val layout = buildCombinedWayprintLayout(combined.gpxBlobs.map { ByteArrayInputStream(it) })
+                        val labels = combined.metadata.labels.map { it.toPlacedLabel() }
+                        Triple(
+                            LoadedTrack.Combined(combined.gpxBlobs, combined.metadata),
+                            0,
+                            EditableWayprintLayout.Combined(layout.copy(labels = labels))
+                        )
+                    }.getOrNull()
+                }
             }
             if (restored == null) {
                 _uiState.value = WayprintUiState(error = "Couldn't load that track")
                 return@launch
             }
-            val (gpxBytes, metadata, state) = restored
-            trackGpxBytes = gpxBytes
-            trackMetadata = metadata
-            _uiState.value = state
+            val (loaded, colorSchemeIndex, layout) = restored
+            loadedTrack = loaded
+            _uiState.value = WayprintUiState(layout = layout, colorSchemeIndex = colorSchemeIndex)
         }
     }
 
@@ -122,18 +137,28 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
 
     /** Saves the current layout/scheme back under [trackId], so a later force-kill can restore this exact state. */
     private fun persistTrack() {
-        val bytes = trackGpxBytes ?: return
-        val metadata = trackMetadata ?: return
         val layout = _uiState.value.layout ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            tracksStorage.save(
-                trackId,
-                bytes,
-                metadata.copy(
-                    labels = layout.labels.map { it.toSavedLabel() },
-                    colorSchemeIndex = _uiState.value.colorSchemeIndex
+        when (val loaded = loadedTrack) {
+            is LoadedTrack.Single -> viewModelScope.launch(Dispatchers.IO) {
+                tracksStorage.save(
+                    trackId,
+                    loaded.gpxBytes,
+                    loaded.metadata.copy(
+                        labels = layout.labels.map { it.toSavedLabel() },
+                        colorSchemeIndex = _uiState.value.colorSchemeIndex
+                    )
                 )
-            )
+            }
+
+            is LoadedTrack.Combined -> viewModelScope.launch(Dispatchers.IO) {
+                tracksStorage.saveCombined(
+                    trackId,
+                    loaded.gpxBlobs,
+                    loaded.metadata.copy(labels = layout.labels.map { it.toSavedLabel() })
+                )
+            }
+
+            null -> Unit
         }
     }
 
@@ -155,4 +180,10 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
             )
         }
     }
+}
+
+/** The raw source bytes and stored metadata [WayprintViewModel.loadTrack] restored [WayprintUiState.layout] from. */
+private sealed interface LoadedTrack {
+    data class Single(val gpxBytes: ByteArray, val metadata: TrackMetadata) : LoadedTrack
+    data class Combined(val gpxBlobs: List<ByteArray>, val metadata: CombinedTrackMetadata) : LoadedTrack
 }

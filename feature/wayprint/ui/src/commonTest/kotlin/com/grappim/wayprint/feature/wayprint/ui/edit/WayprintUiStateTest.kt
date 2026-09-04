@@ -20,7 +20,9 @@ class WayprintUiStateTest {
         anchor = TextAnchor.START,
         boundingBox = Rect(minX = 100.0, minY = 93.0, maxX = 135.0, maxY = 107.0)
     )
-    private val layout = WayprintLayout(path = emptyList(), totalDistanceKm = 1.0, labels = listOf(label))
+    private val layout: EditableWayprintLayout = EditableWayprintLayout.Single(
+        WayprintLayout(path = emptyList(), totalDistanceKm = 1.0, labels = listOf(label))
+    )
 
     @Test
     fun `dragStarted remembers the current layout and scheme as the pre-drag snapshot`() {

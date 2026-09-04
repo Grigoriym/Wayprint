@@ -3,7 +3,8 @@ package com.grappim.wayprint.feature.wayprint.ui.list
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,9 +16,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -92,13 +96,36 @@ fun RecentsScreen(
 
     Scaffold(
         modifier = modifier,
-        topBar = { CenterAlignedTopAppBar(title = { Text("Wayprint") }) },
+        topBar = {
+            if (uiState.isSelectionMode) {
+                CenterAlignedTopAppBar(
+                    title = { Text("${uiState.selectedIds.size} selected") },
+                    navigationIcon = {
+                        IconButton(onClick = viewModel::clearSelection) {
+                            Icon(Icons.Filled.Close, contentDescription = "Cancel selection")
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = viewModel::combineSelected,
+                            enabled = uiState.selectedIds.size >= 2
+                        ) {
+                            Icon(Icons.Filled.Check, contentDescription = "Combine")
+                        }
+                    }
+                )
+            } else {
+                CenterAlignedTopAppBar(title = { Text("Wayprint") })
+            }
+        },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { pickGpx.launch("*/*") },
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("Import GPX") }
-            )
+            if (!uiState.isSelectionMode) {
+                ExtendedFloatingActionButton(
+                    onClick = { pickGpx.launch("*/*") },
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text("Import GPX") }
+                )
+            }
         }
     ) { innerPadding ->
         Box(
@@ -120,7 +147,16 @@ fun RecentsScreen(
                     items(uiState.tracks, key = { it.id }) { item ->
                         RecentTrackRow(
                             item = item,
-                            onClick = { onTrackClick(item.id) },
+                            isSelectionMode = uiState.isSelectionMode,
+                            isSelected = item.id in uiState.selectedIds,
+                            onClick = {
+                                when {
+                                    uiState.isSelectionMode && item.isCombinable -> viewModel.toggleSelected(item.id)
+                                    uiState.isSelectionMode -> Unit
+                                    else -> onTrackClick(item.id)
+                                }
+                            },
+                            onLongClick = { if (item.isCombinable) viewModel.enterSelection(item.id) },
                             onDeleteClick = { pendingDeleteId = item.id }
                         )
                     }
@@ -130,22 +166,38 @@ fun RecentsScreen(
     }
 }
 
+/** [isSelected]/checkbox only shows for a [RecentTrackUiItem.isCombinable] row — combining a combined track isn't supported (M11.4). */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun RecentTrackRow(item: RecentTrackUiItem, onClick: () -> Unit, onDeleteClick: () -> Unit) {
+private fun RecentTrackRow(
+    item: RecentTrackUiItem,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = SCREEN_PADDING, vertical = ROW_VERTICAL_PADDING),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Text(item.displayName)
-            Text("${item.importedDate} · ${item.distanceLabel}")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (isSelectionMode && item.isCombinable) {
+                Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+            }
+            Column {
+                Text(item.displayName)
+                Text("${item.importedDate} · ${item.distanceLabel}")
+            }
         }
-        IconButton(onClick = onDeleteClick) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete")
+        if (!isSelectionMode) {
+            IconButton(onClick = onDeleteClick) {
+                Icon(Icons.Filled.Delete, contentDescription = "Delete")
+            }
         }
     }
 }
