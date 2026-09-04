@@ -38,4 +38,23 @@ class ProjectionTest {
             assertEquals(expected.getValue(name), projection.toSvg(point.lat, point.lon), "town=$name")
         }
     }
+
+    @Test
+    fun `flat point list already shares one bounding box across non-overlapping tracks`() {
+        // M11.1: confirms combining tracks needs no new helper — fitProjection(trackA + trackB)
+        // then projecting each track's own points through that one Projection instance already
+        // yields coordinates on a shared bounding box/scale, not each track's own.
+        val trackA = listOf(TrackPoint(10.0, 0.0, 0.0), TrackPoint(11.0, 1.0, 0.0))
+        val trackB = listOf(TrackPoint(20.0, 10.0, 0.0), TrackPoint(21.0, 11.0, 0.0))
+
+        val projection = fitProjection(trackA + trackB, 860.0, 980.0)
+
+        assertEquals(15.5, projection.meanLat)
+        assertEquals(81.13257309531298, projection.scale)
+
+        assertEquals(0.0 to 892.5, projection.toSvg(trackA[0].lat, trackA[0].lon))
+        assertEquals(78.2 to 811.3, projection.toSvg(trackA[1].lat, trackA[1].lon))
+        assertEquals(781.8 to 81.1, projection.toSvg(trackB[0].lat, trackB[0].lon))
+        assertEquals(860.0 to 0.0, projection.toSvg(trackB[1].lat, trackB[1].lon))
+    }
 }

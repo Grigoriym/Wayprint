@@ -18,6 +18,11 @@ private const val RGB_MAX = 255.0
  * as hex colors, ported from `day_palette()` in `gpx_route_art.py`. Its HLS->RGB conversion has
  * no Kotlin stdlib equivalent, so `colorsys.hls_to_rgb`'s formula is ported here directly — note
  * the argument order is hue/lightness/saturation, not hue/saturation/lightness.
+ *
+ * Two call sites use this generic `n`: `StoryPreset.PRESET_COLOR_SCHEMES` (`dayPalette(5)`, one
+ * fixed palette for the single-track color picker) and, per M11, a combined image's per-track
+ * line color (`dayPalette(tracks.size)`, one hue per track) — no change needed here for the
+ * latter, `n` already means "however many colors this caller needs."
  */
 fun dayPalette(
     n: Int,

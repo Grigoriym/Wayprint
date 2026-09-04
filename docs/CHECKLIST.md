@@ -1532,12 +1532,17 @@ Shared context:
   M10.3's `addLabel`, not auto-generated. This directly reflects the "define ourselves where and
   what labels we want" decision — the defaults are a starting point, not a fixed set.
 
-- [ ] **M11.1** — `core:gpx`: add a multi-track projection helper (shared bounding box/scale over
+- [x] **M11.1** — `core:gpx`: add a multi-track projection helper (shared bounding box/scale over
   N point-lists, each still projected individually) and confirm/document the `dayPalette(n)`
   per-track-color call path. No change to `fitProjection`/`Projection` themselves may be needed if
   the existing flat-list signature already covers it — confirm with a test using two
   non-overlapping tracks before assuming so.
   **Verify:** `./gradlew :core:gpx:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+  **Note:** no new helper needed — confirmed via `ProjectionTest`'s new
+  `flat point list already shares one bounding box across non-overlapping tracks` case that
+  `fitProjection(trackA + trackB)` then `toSvg` per-track already gives a shared bbox/scale.
+  `dayPalette(n)` likewise needed no change, just a doc comment on `DayPalette.kt` naming the
+  future combined-track call site alongside `StoryPreset`'s existing one.
 
 - [ ] **M11.2** — `core:storage`: new combined-track persisted shape per the shared context above
   (sibling type vs. `Track` generalization — decide here). `TracksStorage.list()` needs to surface
