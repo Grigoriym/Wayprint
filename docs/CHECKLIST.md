@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M9.1
+**Current step:** M9.2
 
 ## How to use this
 
@@ -1342,7 +1342,7 @@ Shared context for all of M9 (re-derive nothing below from scratch):
   module isn't wired into actual screen copy anywhere yet, so this doesn't introduce a new pattern
   mid-feature.
 
-- [ ] **M9.1** — new `core:navigation` module: port `Navigator`, `NavigationState`, and
+- [x] **M9.1** — new `core:navigation` module: port `Navigator`, `NavigationState`, and
   `toEntries` from `../wallosmobile`'s `core:navigation` (single-section shape — no drawer,
   `topLevelKeys` always a one-element set), plus its `NavigatorTest`.
   **Verify:** `./gradlew :core:navigation:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
