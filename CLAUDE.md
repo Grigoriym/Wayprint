@@ -252,3 +252,16 @@ Read these rather than guessing; the conventions here are ported from them.
 
 **Trust their code over their docs.** Another project's `CLAUDE.md` can contradict its own
 implementation — both of these repos have had exactly that. Note a drift here when you find one.
+
+## Known IDE quirks
+
+- Android Studio/IntelliJ can show false "unresolved reference" errors for Android SDK classes
+  (`android.net.Uri`, `android.graphics.Paint`, etc.) imported directly in `commonMain` files,
+  even though `./gradlew build` succeeds cleanly. Cause: this project's KMP setup uses
+  `com.android.kotlin.multiplatform.library` (`build-logic/convention/.../
+  KmpLibraryConventionPlugin.kt`) — an Android-only KMP target, so `commonMain` legitimately
+  compiles against Android and those imports are correct (same reasoning as the "no expect/actual,
+  platform APIs go directly in commonMain" note in `WayprintViewModel.kt`). The IDE's KMP project
+  model has historically lagged this specific (newer) AGP plugin type and can fail to attach the
+  Android SDK classpath to `commonMain` for live resolution. Before assuming the code is wrong:
+  File → Sync Project with Gradle Files, then File → Invalidate Caches / Restart.
