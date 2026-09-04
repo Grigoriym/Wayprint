@@ -63,12 +63,13 @@ F-Droid + Play flavors, shared `build-logic` convention plugins, fastlane.
 
 MVP (M0–M11, see `docs/CHECKLIST_ARCHIVE.md`) is complete, including the editable canvas
 (drag labels, pick color scheme, undo, freeform labels) and combining multiple tracks into one
-image — both started as backlog items here and were pulled into milestones. Remaining backlog:
+image — both started as backlog items here and were pulled into milestones. M12 (a second,
+square layout template, locked in at creation time) is scoped and ready — see `docs/CHECKLIST.md`.
+Remaining backlog:
 
 - More input sources: Health Connect / Strava OAuth import; on-device live recording (scope
   jump — treat as a distinct milestone, not an MVP add-on).
-- Multiple layout templates (poster, square post, story) once one layout is proven — includes
-  aspect-ratio picking, deferred out of the M7 editable-canvas milestone.
+- A third layout template (poster) once M12 proves the two-template plumbing.
 - KMP-first is partly a bet that `core:gpx` and the Compose Multiplatform `Canvas` rendering
   ship to iOS/Desktop later at low incremental cost, the same jump Taiga already made.
 

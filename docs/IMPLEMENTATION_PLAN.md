@@ -142,12 +142,16 @@ sections, expanded into milestones — see `docs/CHECKLIST.md` for the step-by-s
     bytes, sharing one projection, reusing M10's freeform labels (default global Start/Finish
     only) — editable exactly like a single track. Fifth growth-roadmap/backlog item pulled into
     a milestone.
+13. **M12** — a second layout template (square post): the template a track uses is locked in at
+    creation time (fresh import or combine) and never changes after, avoiding any reflow story
+    for M10's freeform label positions. Scoped to exactly one new template, not all of
+    poster/square/story at once — see `docs/CHECKLIST.md`'s M12 shared context. Sixth
+    growth-roadmap/backlog item pulled into a milestone (2026-09-04, during this investigation).
 
-MVP roadmap (M0–M11) is complete as of M11.4. Remaining growth roadmap (not milestones yet,
-backlog only): more input sources (Health Connect, Strava OAuth, on-device recording — a
-distinct scope jump), multiple layout templates (poster, square, story — includes aspect-ratio
-picking, deferred out of M7), iOS/Desktop targets for `core:gpx` and the Compose `Canvas`
-renderer.
+MVP roadmap (M0–M11) is complete as of M11.4; M12 is scoped and ready to start. Remaining growth
+roadmap (not milestones yet, backlog only): more input sources (Health Connect, Strava OAuth,
+on-device recording — a distinct scope jump), a third layout template (poster) once M12 proves
+the two-template plumbing, iOS/Desktop targets for `core:gpx` and the Compose `Canvas` renderer.
 
 ## 9. Open decisions / risks
 
