@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import kotlinx.io.files.Path
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 import java.io.ByteArrayInputStream
@@ -46,7 +47,7 @@ import java.io.FileOutputStream
 @KoinViewModel
 class WayprintViewModel(@InjectedParam private val trackId: String, private val context: Context) : ViewModel() {
 
-    private val tracksStorage = TracksStorage(context.filesDir)
+    private val tracksStorage = TracksStorage(Path(context.filesDir.absolutePath))
 
     /** The raw bytes and stored metadata the current [WayprintUiState.layout] was built from. */
     private var loadedTrack: LoadedTrack? = null

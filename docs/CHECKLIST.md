@@ -1,7 +1,7 @@
 # Wayprint checklist
 
-**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1-M15.3 done,
-next is M15.4. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
+**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1-M15.4 done,
+next is M15.5. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
 and moving Android-only code out of `commonMain`) are complete and archived to
 `docs/CHECKLIST_ARCHIVE.md`. M15 is fully buildable/runnable/verifiable on this dev machine; M16
 adds iOS after M15 lands, but its verification is capped — this machine is Linux, so an iOS app
@@ -149,7 +149,7 @@ target half-wired and everything red, since each step still needs its own passin
   new `implementation(libs.kotlinx.io.core)` in that module's `build.gradle.kts` (previously only
   `core:gpx`/`feature:wayprint:domain` depended on it directly).
 
-- [ ] **M15.4** — `core:storage`: replace `TracksStorage.kt`'s `java.io.File` with `kotlinx-io`'s
+- [x] **M15.4** — `core:storage`: replace `TracksStorage.kt`'s `java.io.File` with `kotlinx-io`'s
   `Path`/`SystemFileSystem`, mirroring `TaigaMobileNova/core/storage`'s own `File`→`kotlinx-io`
   precedent. The constructor keeps taking a caller-resolved directory (CLAUDE.md's settled
   decision stands — `core:storage` still doesn't know about `Context`), just typed as `Path`
@@ -157,6 +157,21 @@ target half-wired and everything red, since each step still needs its own passin
   `context.filesDir` call site to wrap it as a `Path`.
   **Verify:** `./gradlew :core:storage:testAndroidHostTest :feature:wayprint:ui:testAndroidHostTest`,
   `detekt`, `ktlintCheck` pass; full `./gradlew build` (cross-module, per M9.5's frictions note).
+  Note: this step's claimed Taiga precedent doesn't actually exist — `TaigaMobileNova/core/storage`
+  has no raw-blob file storage at all (it's Room DB + DataStore; the one `java.io.File` use,
+  `platform/AppDataDir.jvm.kt`, is `jvmMain`-only and never became `kotlinx-io`). Went with
+  `Path`/`SystemFileSystem` anyway since it's the only portable option and CLAUDE.md's own
+  "Trust their code over their docs" note already anticipates checklist claims drifting from a
+  reference project's actual code. `Sink`/`Source` have no `readBytes()`/`writeBytes()`/
+  `readText()`/`writeText()` convenience like `java.io.File` did, and `SystemFileSystem` has no
+  recursive delete, so `TracksStorage.kt` gained small private helpers
+  (`readBytes`/`writeBytes`/`readText`/`writeText`/`deleteRecursively`) built on
+  `kotlinx.io.readByteArray`/`writeString`/`Sink.write(ByteArray)` + a manual `list()`-then-`delete()`
+  recursion. `TracksStorageTest.kt` (in `commonTest`, so it'll need to compile for every future
+  target too) swapped `java.nio.file.Files.createTempDirectory` for
+  `Path(SystemTemporaryDirectory, "tracks-storage-test-${Random.nextInt()}")` +
+  `SystemFileSystem.createDirectories`, and its two "legacy metadata" tests' raw `File` writes for
+  a `SystemFileSystem.sink(path).buffered().use { it.writeString(...) }` helper.
 
 - [ ] **M15.5** — `feature:wayprint:ui`: in `WayprintCanvas.kt`, swap `renderWayprintStoryBitmap`/
   `renderCombinedWayprintStoryBitmap`'s `android.graphics.Bitmap`+`android.graphics.Canvas` for

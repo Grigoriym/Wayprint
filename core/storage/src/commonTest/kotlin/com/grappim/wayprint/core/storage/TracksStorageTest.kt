@@ -1,7 +1,11 @@
 package com.grappim.wayprint.core.storage
 
-import java.io.File
-import java.nio.file.Files
+import kotlinx.io.buffered
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
+import kotlinx.io.files.SystemTemporaryDirectory
+import kotlinx.io.writeString
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -10,7 +14,9 @@ import kotlin.test.assertTrue
 
 class TracksStorageTest {
 
-    private val directory = Files.createTempDirectory("tracks-storage-test").toFile()
+    private val directory = Path(SystemTemporaryDirectory, "tracks-storage-test-${Random.nextInt()}").also {
+        SystemFileSystem.createDirectories(it)
+    }
     private val storage = TracksStorage(directory)
 
     private fun labels() = listOf(
@@ -45,6 +51,10 @@ class TracksStorageTest {
         distanceKm = distanceKm,
         storyPresetIndex = storyPresetIndex
     )
+
+    private fun writeFile(path: Path, text: String) {
+        SystemFileSystem.sink(path).buffered().use { it.writeString(text) }
+    }
 
     @Test
     fun `load returns null for an id that was never saved`() {
@@ -139,9 +149,10 @@ class TracksStorageTest {
 
     @Test
     fun `load defaults storyPresetIndex to 0 for metadata json saved before that field existed`() {
-        val trackDirectory = File(directory, "legacy-single").apply { mkdirs() }
-        File(trackDirectory, "track.gpx").writeBytes("<gpx/>".toByteArray())
-        File(trackDirectory, "metadata.json").writeText(
+        val trackDirectory = Path(directory, "legacy-single").also { SystemFileSystem.createDirectories(it) }
+        writeFile(Path(trackDirectory, "track.gpx"), "<gpx/>")
+        writeFile(
+            Path(trackDirectory, "metadata.json"),
             """{"labels":[],"colorSchemeIndex":0,"displayName":"Legacy","importedAtEpochMillis":0,"distanceKm":0.0}"""
         )
 
@@ -152,9 +163,10 @@ class TracksStorageTest {
 
     @Test
     fun `loadCombined defaults storyPresetIndex to 0 for metadata json saved before that field existed`() {
-        val trackDirectory = File(directory, "legacy-combined").apply { mkdirs() }
-        File(trackDirectory, "track-0.gpx").writeBytes("<gpx/>".toByteArray())
-        File(trackDirectory, "metadata.json").writeText(
+        val trackDirectory = Path(directory, "legacy-combined").also { SystemFileSystem.createDirectories(it) }
+        writeFile(Path(trackDirectory, "track-0.gpx"), "<gpx/>")
+        writeFile(
+            Path(trackDirectory, "metadata.json"),
             """{"labels":[],"displayName":"Legacy combined","importedAtEpochMillis":0,"distanceKm":0.0}"""
         )
 

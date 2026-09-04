@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import kotlinx.io.files.Path
 import org.koin.core.annotation.KoinViewModel
 import java.io.ByteArrayInputStream
 import java.text.SimpleDateFormat
@@ -36,7 +37,7 @@ import java.util.Locale
 @KoinViewModel
 class RecentsViewModel(private val context: Context) : ViewModel() {
 
-    private val tracksStorage = TracksStorage(context.filesDir)
+    private val tracksStorage = TracksStorage(Path(context.filesDir.absolutePath))
 
     private val _uiState = MutableStateFlow(RecentsUiState())
     val uiState: StateFlow<RecentsUiState> = _uiState.asStateFlow()
