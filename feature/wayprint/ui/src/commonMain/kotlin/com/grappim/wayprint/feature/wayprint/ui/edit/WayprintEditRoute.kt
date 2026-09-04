@@ -5,8 +5,9 @@ import kotlinx.serialization.Serializable
 
 /**
  * Pushed onto the stack with the id of an already-saved track (M9's "every import auto-saves"
- * decision — there is no "new, unsaved" edit state). [WayprintViewModel] loads that one track
- * from `TracksStorage` and saves edits back under the same id.
+ * decision — there is no "new, unsaved" edit state). `WayprintViewModel` (`androidMain` since
+ * M14, not linkable from this `commonMain` KDoc) loads that one track from `TracksStorage` and
+ * saves edits back under the same id.
  *
  * Registered in the shell's `navKeySerializersModule` — a route missing from there survives every
  * gate and only breaks back-stack restore after process death.

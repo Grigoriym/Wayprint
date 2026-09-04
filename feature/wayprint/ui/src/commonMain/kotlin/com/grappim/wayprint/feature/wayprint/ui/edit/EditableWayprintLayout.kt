@@ -6,9 +6,10 @@ import com.grappim.wayprint.feature.wayprint.domain.WayprintLayout
 
 /**
  * Unifies [WayprintLayout] (single track) and [CombinedWayprintLayout] (M11) so
- * [WayprintUiState]/[WayprintViewModel] can edit labels the same way for both — the only place
- * the two diverge is drawing, where [WayprintScreen][com.grappim.wayprint.feature.wayprint.ui.edit.WayprintScreen]
- * dispatches on this type to the matching canvas.
+ * `WayprintUiState`/`WayprintViewModel` can edit labels the same way for both — the only place
+ * the two diverge is drawing, where `WayprintScreen` dispatches on this type to the matching
+ * canvas. (`WayprintViewModel`/`WayprintScreen` live in `androidMain` since M14, so they're no
+ * longer linkable from this `commonMain` KDoc.)
  */
 sealed interface EditableWayprintLayout {
     val labels: List<PlacedLabel>

@@ -1,10 +1,10 @@
 # Wayprint checklist
 
-**Current step:** M14 scoped and ready (move Android-only code out of `commonMain`) — see below.
-M0–M13 (the full MVP roadmap, the second layout template, and the edit-toolbar decluttering) are
-complete and archived to `docs/CHECKLIST_ARCHIVE.md`. Release CI/publish was explicitly deferred
-by the user (keystores ready since M6.3) — pick that back up only when they say the app is ready
-to ship.
+**Current step:** M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar
+decluttering, and moving Android-only code out of `commonMain`) are complete and archived to
+`docs/CHECKLIST_ARCHIVE.md`. Nothing scoped and ready right now — see Backlog below for growth
+candidates. Release CI/publish was explicitly deferred by the user (keystores ready since M6.3) —
+pick that back up only when they say the app is ready to ship.
 
 ## How to use this
 
@@ -33,39 +33,6 @@ Ground rules (see `docs/IMPLEMENTATION_PLAN.md` for the *why* behind any of thes
 
 Completed milestones live in `docs/CHECKLIST_ARCHIVE.md`, each step's full `Note:`/`Verify:` text
 preserved verbatim — read that file for history/precedent, not this one.
-
-## M14 — Move Android-only code out of `commonMain`
-
-`commonMain` is supposed to be platform-agnostic per the KMP model, but 8 files import
-`android.*` directly there (a deliberate tradeoff to skip `expect`/`actual` boilerplate while
-there's only one target — see `WayprintViewModel.kt`'s doc comment). `./gradlew build` accepts it
-today since this is a single-target (Android-only) module, but Android Studio doesn't resolve
-these imports even after Invalidate Caches — confirmed with the user, not just a stale-cache
-guess. It's also a real risk, not just IDE noise: `CLAUDE.md`'s roadmap wants `core:gpx` and the
-Compose `Canvas` renderer to ship to iOS/Desktop eventually, and this code would fail to compile
-there, not just red-squiggle.
-
-Fix: move these files' *directories* from `src/commonMain` to `src/androidMain` (both source
-sets already exist and are wired — `composeApp` already does this correctly for
-`PlatformComponentModule`, its one `expect`/`actual` case). No code changes — confirmed by grep
-that all cross-references between these 8 files stay within the moving set:
-
-- `composeApp`: `WayprintAppContent.kt`, `WayprintNavHost.kt`, `WayprintEntryProvider.kt`
-- `feature:wayprint:ui`: `WayprintScreen.kt`, `WayprintViewModel.kt`, `WayprintCanvas.kt`,
-  `RecentsScreen.kt`, `RecentsViewModel.kt`
-
-No other module (`core:gpx`, `feature:wayprint:domain`, `core:storage`, `core:navigation`,
-`uikit`) imports `android.*` in `commonMain` — out of scope, nothing to move there. A few files
-staying in `commonMain` (`EditableWayprintLayout.kt`, `RecentsUiState.kt`, `WayprintEditRoute.kt`)
-reference the moving files only in KDoc `[links]`, not real imports — those may go dangling after
-the move; cosmetic, not a compile break, fix opportunistically if noticed.
-
-- [ ] **M14.1** — Move the 8 files above from `src/commonMain` to `src/androidMain` (same package
-  path) in `composeApp` and `feature:wayprint:ui`. No logic changes.
-  **Verify:** full `./gradlew build` (not per-module — this is a cross-file move, per M9.5's
-  frictions note about per-module Verify missing cross-module regressions), `detekt`,
-  `ktlintCheck` pass. In Android Studio: `Uri`/`Paint`/etc. resolve with no red squiggles in the
-  moved files (Invalidate Caches / Restart once if needed right after the move).
 
 ## Backlog (growth roadmap, not milestones yet)
 

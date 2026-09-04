@@ -1,7 +1,8 @@
 package com.grappim.wayprint.feature.wayprint.ui.list
 
 /**
- * One list row, ready-to-display strings precomputed in [RecentsViewModel]. [isCombinable]
+ * One list row, ready-to-display strings precomputed in `RecentsViewModel` (`androidMain` since
+ * M14, not linkable from this `commonMain` KDoc). [isCombinable]
  * (M11.4) is `true` only for a single track ([com.grappim.wayprint.core.storage.TrackListEntry.Single]) —
  * combining an already-combined track isn't supported, so it's excluded from multi-select.
  */
@@ -13,7 +14,7 @@ data class RecentTrackUiItem(
     val isCombinable: Boolean
 )
 
-/** [selectedIds] is ordered by selection, not display order — [RecentsViewModel.combineSelected] combines in that order. */
+/** [selectedIds] is ordered by selection, not display order — `RecentsViewModel.combineSelected` combines in that order. */
 data class RecentsUiState(
     val tracks: List<RecentTrackUiItem> = emptyList(),
     val isLoading: Boolean = false,
