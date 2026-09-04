@@ -9,6 +9,7 @@ import com.grappim.wayprint.core.storage.CombinedTrackMetadata
 import com.grappim.wayprint.core.storage.TrackListEntry
 import com.grappim.wayprint.core.storage.TrackMetadata
 import com.grappim.wayprint.core.storage.TracksStorage
+import com.grappim.wayprint.feature.wayprint.domain.STORY_PRESETS
 import com.grappim.wayprint.feature.wayprint.domain.buildCombinedWayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
 import com.grappim.wayprint.feature.wayprint.ui.toSavedLabel
@@ -62,7 +63,8 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
                 runCatching {
                     val gpxBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                         ?: error("Couldn't open $uri")
-                    val layout = ByteArrayInputStream(gpxBytes).use { buildWayprintLayout(it) }
+                    val preset = STORY_PRESETS[storyPresetIndex]
+                    val layout = ByteArrayInputStream(gpxBytes).use { buildWayprintLayout(it, preset) }
                     val id = System.currentTimeMillis().toString()
                     tracksStorage.save(
                         id,
@@ -131,7 +133,9 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
                 runCatching {
                     val tracks = ids.map { id -> tracksStorage.load(id) ?: error("Missing track $id") }
                     val gpxBlobs = tracks.map { it.gpxBytes }
-                    val layout = buildCombinedWayprintLayout(gpxBlobs.map { ByteArrayInputStream(it) })
+                    val preset = STORY_PRESETS[storyPresetIndex]
+                    val inputs = gpxBlobs.map { ByteArrayInputStream(it) }
+                    val layout = buildCombinedWayprintLayout(inputs, preset)
                     val id = System.currentTimeMillis().toString()
                     tracksStorage.saveCombined(
                         id,

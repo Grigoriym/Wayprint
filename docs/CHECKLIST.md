@@ -1,8 +1,9 @@
 # Wayprint checklist
 
-**Current step:** M12.3 done, next up is M12.4. M0–M11 (the full MVP roadmap) are complete —
-moved to `docs/CHECKLIST_ARCHIVE.md`. Release CI/publish was explicitly deferred by the user
-(keystores ready since M6.3) — pick that back up only when they say the app is ready to ship.
+**Current step:** M12.4 done — M12 (second layout template) is fully complete. M0–M11 (the full
+MVP roadmap) are also complete — moved to `docs/CHECKLIST_ARCHIVE.md`. Release CI/publish was
+explicitly deferred by the user (keystores ready since M6.3) — pick that back up only when they
+say the app is ready to ship.
 
 ## How to use this
 
@@ -136,7 +137,7 @@ Shared context:
   (all modules, not just `feature:wayprint:ui`) also passes. M12.4 is what actually makes
   `storyPresetIndex` affect rendering — this step only plumbs it through storage/state.
 
-- [ ] **M12.4** — `feature:wayprint:ui`: `WayprintScreen`'s render/export call sites
+- [x] **M12.4** — `feature:wayprint:ui`: `WayprintScreen`'s render/export call sites
   (`WayprintCanvas`/`CombinedWayprintCanvas`, `renderWayprintStoryBitmap`/
   `renderCombinedWayprintStoryBitmap`) stop hardcoding the `DEFAULT_STORY_PRESET` literal and read
   the loaded track's actual preset (via `STORY_PRESETS[storyPresetIndex]`) instead.
@@ -145,6 +146,22 @@ Shared context:
   a square canvas, exported/shared bitmap is square-dimensioned, force-stop/relaunch preserves the
   choice; import and combine choosing story still render/export unchanged; a track from before
   this milestone (or one created choosing story) still opens correctly.
+  Note: scope had to expand past the step's literal wording. Fixing only `WayprintScreen`'s draw
+  calls left the route badly broken for square: `buildWayprintLayout`/`buildCombinedWayprintLayout`
+  project the route into `preset.routeBoxWidth/Height` (860×980 for story vs 860×860 for square) —
+  that preset has to match at *layout-build* time, not just at draw time, or the route/marker
+  positions are computed for the wrong box and overflow the canvas. Two more call sites were
+  silently defaulting to `DEFAULT_STORY_PRESET` and needed the same fix: `WayprintViewModel
+  .loadTrack()` (rebuilds the layout on every load/restore) and `RecentsViewModel.importGpx`/
+  `combineSelected()` (build the *initial* layout whose labels get persisted into
+  `TrackMetadata`/`CombinedTrackMetadata` at creation time — already had `storyPresetIndex` in
+  scope as a parameter, just wasn't threading it into the layout builder call). Caught on the
+  emulator, not by the unit tests: importing a real GPX fixture as square rendered the Finish
+  marker/label ~370px below the square canvas's bottom edge — M12.1's `StoryPresetTest` fixture
+  apparently didn't exercise this path's numeric drift. All three call sites now build with
+  `STORY_PRESETS[storyPresetIndex]`; shared context's "pipeline is already fully parameterized, no
+  pipeline changes needed" was accurate for the pipeline functions' signatures, just not for
+  which of their callers actually passed the non-default preset through.
 
 ## Backlog (growth roadmap, not milestones yet)
 

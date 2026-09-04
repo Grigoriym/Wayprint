@@ -55,3 +55,11 @@ technique lives in the skill itself, not here — this file is only what's true 
   regression in the new code — `adb shell pm clear <package-id>` before the first emulator run
   against such a change, rather than debugging the deserializer. (M10.3, 2026-09-04, hit against
   M10.2's `labelPositions` → `labels` rename.)
+- To verify an *additive*, defaulted `TrackMetadata`/`CombinedTrackMetadata` field (e.g.
+  M12.2's `storyPresetIndex: Int = 0`) actually defaults correctly on a genuinely old track,
+  don't rely on a stale on-disk track surviving from before the field existed — synthesize one:
+  `run-as`-copy an existing track's `metadata.json`, hand-edit out the new field's key with a
+  local edit, then pipe it back onto the device (see the `emulator-testing` skill's "planting
+  local storage state" note for why a plain `run-as cp` from `/sdcard` fails and the stdin-pipe
+  workaround). Confirmed the app opens the resulting track normally, defaulting to the story
+  preset. (M12.4, 2026-09-04.)

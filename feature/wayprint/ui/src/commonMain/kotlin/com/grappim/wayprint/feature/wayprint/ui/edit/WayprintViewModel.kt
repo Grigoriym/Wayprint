@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.grappim.wayprint.core.storage.CombinedTrackMetadata
 import com.grappim.wayprint.core.storage.TrackMetadata
 import com.grappim.wayprint.core.storage.TracksStorage
+import com.grappim.wayprint.feature.wayprint.domain.STORY_PRESETS
 import com.grappim.wayprint.feature.wayprint.domain.buildCombinedWayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.placeNewLabel
@@ -63,7 +64,8 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
                 val single = tracksStorage.load(trackId)
                 if (single != null) {
                     runCatching {
-                        val layout = ByteArrayInputStream(single.gpxBytes).use { buildWayprintLayout(it) }
+                        val preset = STORY_PRESETS[single.metadata.storyPresetIndex]
+                        val layout = ByteArrayInputStream(single.gpxBytes).use { buildWayprintLayout(it, preset) }
                         val labels = single.metadata.labels.map { it.toPlacedLabel() }
                         RestoredTrack(
                             loaded = LoadedTrack.Single(single.gpxBytes, single.metadata),
@@ -75,7 +77,9 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
                 } else {
                     val combined = tracksStorage.loadCombined(trackId) ?: return@withContext null
                     runCatching {
-                        val layout = buildCombinedWayprintLayout(combined.gpxBlobs.map { ByteArrayInputStream(it) })
+                        val preset = STORY_PRESETS[combined.metadata.storyPresetIndex]
+                        val inputs = combined.gpxBlobs.map { ByteArrayInputStream(it) }
+                        val layout = buildCombinedWayprintLayout(inputs, preset)
                         val labels = combined.metadata.labels.map { it.toPlacedLabel() }
                         RestoredTrack(
                             loaded = LoadedTrack.Combined(combined.gpxBlobs, combined.metadata),

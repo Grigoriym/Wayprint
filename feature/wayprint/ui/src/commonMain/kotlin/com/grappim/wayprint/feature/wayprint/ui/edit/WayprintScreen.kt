@@ -44,8 +44,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.grappim.wayprint.feature.wayprint.domain.ColorScheme
-import com.grappim.wayprint.feature.wayprint.domain.DEFAULT_STORY_PRESET
 import com.grappim.wayprint.feature.wayprint.domain.PRESET_COLOR_SCHEMES
+import com.grappim.wayprint.feature.wayprint.domain.STORY_PRESETS
 import com.grappim.wayprint.feature.wayprint.ui.CombinedWayprintCanvas
 import com.grappim.wayprint.feature.wayprint.ui.WayprintCanvas
 import com.grappim.wayprint.feature.wayprint.ui.parseHexColor
@@ -112,11 +112,12 @@ fun WayprintScreen(
                 }
 
                 layout != null -> Box(modifier = Modifier.fillMaxSize()) {
+                    val preset = STORY_PRESETS[uiState.storyPresetIndex]
                     when (layout) {
                         is EditableWayprintLayout.Single -> {
                             WayprintCanvas(
                                 layout = layout.layout,
-                                preset = DEFAULT_STORY_PRESET,
+                                preset = preset,
                                 colorScheme = PRESET_COLOR_SCHEMES[uiState.colorSchemeIndex],
                                 modifier = Modifier.fillMaxSize(),
                                 onDragStart = viewModel::onLabelDragStart,
@@ -136,7 +137,7 @@ fun WayprintScreen(
                         is EditableWayprintLayout.Combined -> {
                             CombinedWayprintCanvas(
                                 layout = layout.layout,
-                                preset = DEFAULT_STORY_PRESET,
+                                preset = preset,
                                 modifier = Modifier.fillMaxSize(),
                                 onDragStart = viewModel::onLabelDragStart,
                                 onDrag = viewModel::onLabelDragged,
@@ -167,13 +168,13 @@ fun WayprintScreen(
                             val bitmap = when (layout) {
                                 is EditableWayprintLayout.Single -> renderWayprintStoryBitmap(
                                     layout.layout,
-                                    DEFAULT_STORY_PRESET,
+                                    preset,
                                     PRESET_COLOR_SCHEMES[uiState.colorSchemeIndex]
                                 )
 
                                 is EditableWayprintLayout.Combined -> renderCombinedWayprintStoryBitmap(
                                     layout.layout,
-                                    DEFAULT_STORY_PRESET
+                                    preset
                                 )
                             }
                             val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
