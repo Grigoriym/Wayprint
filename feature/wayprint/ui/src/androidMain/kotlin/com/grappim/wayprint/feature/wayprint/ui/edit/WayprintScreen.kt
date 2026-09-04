@@ -48,7 +48,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.grappim.wayprint.feature.wayprint.domain.ColorScheme
@@ -80,6 +84,7 @@ fun WayprintScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val textMeasurer = rememberTextMeasurer()
 
     var pendingSaveBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var pendingAddPosition by remember { mutableStateOf<Pair<Double, Double>?>(null) }
@@ -101,7 +106,7 @@ fun WayprintScreen(
 
     fun saveCurrentLayout() {
         val currentLayout = layout ?: return
-        val bitmap = renderStoryBitmap(currentLayout, preset, uiState.colorSchemeIndex)
+        val bitmap = renderStoryBitmap(currentLayout, preset, uiState.colorSchemeIndex, textMeasurer)
         val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
             ContextCompat.checkSelfPermission(
                 context,
@@ -117,7 +122,7 @@ fun WayprintScreen(
 
     fun shareCurrentLayout() {
         val currentLayout = layout ?: return
-        viewModel.share(renderStoryBitmap(currentLayout, preset, uiState.colorSchemeIndex))
+        viewModel.share(renderStoryBitmap(currentLayout, preset, uiState.colorSchemeIndex, textMeasurer))
     }
 
     Scaffold(
@@ -227,16 +232,24 @@ fun WayprintScreen(
 }
 
 /** Renders [layout] to a bitmap for Save/Share, dispatching on which [EditableWayprintLayout] kind it is. */
-private fun renderStoryBitmap(layout: EditableWayprintLayout, preset: StoryPreset, colorSchemeIndex: Int): Bitmap =
-    when (layout) {
+private fun renderStoryBitmap(
+    layout: EditableWayprintLayout,
+    preset: StoryPreset,
+    colorSchemeIndex: Int,
+    textMeasurer: TextMeasurer
+): Bitmap {
+    val imageBitmap: ImageBitmap = when (layout) {
         is EditableWayprintLayout.Single -> renderWayprintStoryBitmap(
             layout.layout,
             preset,
-            PRESET_COLOR_SCHEMES[colorSchemeIndex]
+            PRESET_COLOR_SCHEMES[colorSchemeIndex],
+            textMeasurer
         )
 
-        is EditableWayprintLayout.Combined -> renderCombinedWayprintStoryBitmap(layout.layout, preset)
+        is EditableWayprintLayout.Combined -> renderCombinedWayprintStoryBitmap(layout.layout, preset, textMeasurer)
     }
+    return imageBitmap.asAndroidBitmap()
+}
 
 /** Prompts for a new freeform label's text (M10.3), confirming via [onConfirm] once it's non-blank. */
 @Composable

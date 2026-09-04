@@ -1,7 +1,7 @@
 # Wayprint checklist
 
-**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1-M15.4 done,
-next is M15.5. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
+**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1-M15.5 done,
+next is M15.6. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
 and moving Android-only code out of `commonMain`) are complete and archived to
 `docs/CHECKLIST_ARCHIVE.md`. M15 is fully buildable/runnable/verifiable on this dev machine; M16
 adds iOS after M15 lands, but its verification is capped — this machine is Linux, so an iOS app
@@ -173,7 +173,7 @@ target half-wired and everything red, since each step still needs its own passin
   `SystemFileSystem.createDirectories`, and its two "legacy metadata" tests' raw `File` writes for
   a `SystemFileSystem.sink(path).buffered().use { it.writeString(...) }` helper.
 
-- [ ] **M15.5** — `feature:wayprint:ui`: in `WayprintCanvas.kt`, swap `renderWayprintStoryBitmap`/
+- [x] **M15.5** — `feature:wayprint:ui`: in `WayprintCanvas.kt`, swap `renderWayprintStoryBitmap`/
   `renderCombinedWayprintStoryBitmap`'s `android.graphics.Bitmap`+`android.graphics.Canvas` for
   Compose Multiplatform's `ImageBitmap`+`androidx.compose.ui.graphics.Canvas(imageBitmap)`
   (portable, no `expect`/`actual`, identical output), and replace `drawWayprintLabels`'s/
@@ -186,6 +186,27 @@ target half-wired and everything red, since each step still needs its own passin
   Emulator check (`emulator-testing` skill): rendered route art (line, markers, label halo/fill
   text) looks pixel-equivalent to before the swap, both on-screen and in the exported
   save/share bitmap.
+  Note: every `TextMeasurer.measure()` call pins `density = Density(1f)` (a new `LABEL_TEXT_DENSITY`
+  constant) so `LABEL_TEXT_SIZE.sp` reads as literal canvas-space units regardless of the device's
+  real display density — matching the old `Paint.textSize` behavior, which was already
+  density-invariant since raw `Paint` ignores Compose's ambient density entirely. Label
+  halo/fill text is drawn via `androidx.compose.ui.text.drawText(textLayoutResult, ...,
+  drawStyle = ...)` on one shared `TextLayoutResult` (halo first with `Stroke`, then fill).
+  Hit a real bug caught only by the emulator check, not by unit tests or a build: the second
+  (fill) `drawText` call must pass `drawStyle = Fill` **explicitly** — leaving the parameter at
+  its `null` default does not reset the style to Fill. `AndroidTextPaint.setDrawStyle(drawStyle)`
+  early-returns on a `null` argument rather than defaulting it, and the underlying platform
+  `TextPaint` is reused across both `drawText` calls on the same `TextLayoutResult` (by design,
+  to let color/style change cheaply between draws without relayout) — so the fill draw silently
+  inherited the halo draw's leftover `Stroke(width = 8f)`, painting the fill pass as a second
+  8px-wide stroke outline directly on top of the first. At the label's actual 28px canvas-space
+  size an 8px round-joined outline is thick enough relative to a normal sans-serif letterform to
+  fill in every counter and inter-letter gap, so both labels rendered as solid dark blobs with no
+  legible glyph shapes — worth flagging explicitly since this is exactly the kind of
+  visually-obvious-but-build/test-invisible regression `docs/EMULATOR_TESTING.md`'s existing
+  gotchas warn about, and confirmed by diffing an emulator screenshot against a build from the
+  pre-M15.5 commit before concluding it was a real regression rather than a pre-existing look
+  nobody had zoomed into.
 
 - [ ] **M15.6** — `composeApp`: replace the plumbing-only `android.net.Uri` in
   `WayprintAppContent.kt`/`WayprintNavHost.kt`/`WayprintEntryProvider.kt` with an
