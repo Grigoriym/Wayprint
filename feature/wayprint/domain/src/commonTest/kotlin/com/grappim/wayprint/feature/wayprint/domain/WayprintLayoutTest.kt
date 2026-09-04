@@ -40,4 +40,41 @@ class WayprintLayoutTest {
             }
         }
     }
+
+    @Test
+    fun `combined pipeline places exactly the 2 default Start-Finish labels, no distance label`() {
+        val fixtures = listOf(
+            requireNotNull(object {}.javaClass.getResourceAsStream("/fixtures/04 Riesa - Meissen.gpx")),
+            requireNotNull(object {}.javaClass.getResourceAsStream("/fixtures/04 Riesa - Meissen.gpx"))
+        )
+
+        val layout = try {
+            buildCombinedWayprintLayout(fixtures)
+        } finally {
+            fixtures.forEach { it.close() }
+        }
+
+        assertEquals(2, layout.tracks.size)
+        assertEquals(2, layout.labels.size)
+        assertEquals(setOf("start", "finish"), layout.labels.map { it.id }.toSet())
+
+        val canvasBounds = Rect(
+            minX = 0.0,
+            minY = 0.0,
+            maxX = DEFAULT_STORY_PRESET.canvasWidth,
+            maxY = DEFAULT_STORY_PRESET.canvasHeight
+        )
+        for (label in layout.labels) {
+            val box = label.boundingBox
+            assertTrue(
+                box.minX >= canvasBounds.minX && box.minY >= canvasBounds.minY &&
+                    box.maxX <= canvasBounds.maxX && box.maxY <= canvasBounds.maxY,
+                "${label.text}'s bounding box $box must stay within the canvas $canvasBounds"
+            )
+        }
+        assertFalse(
+            layout.labels[0].boundingBox.overlaps(layout.labels[1].boundingBox),
+            "Start and Finish must not overlap"
+        )
+    }
 }

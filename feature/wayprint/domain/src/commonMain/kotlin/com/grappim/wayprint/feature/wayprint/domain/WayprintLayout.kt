@@ -18,6 +18,16 @@ data class WayprintLayout(
 )
 
 /**
+ * A combined image's layout (M11): N [ColoredPath]s sharing one canvas/projection instead of
+ * [WayprintLayout]'s single path, plus placed labels. M4's renderer draws one line per track.
+ */
+data class CombinedWayprintLayout(
+    val tracks: List<ColoredPath>,
+    val totalDistanceKm: Double,
+    val labels: List<PlacedLabel>
+)
+
+/**
  * The 3 default label requests generated fresh on import — Start/Finish anchor to [path]'s
  * first/last points, the distance label anchors to its bounding-box center — with fixed ids so
  * they stay identifiable across saves. Only the *initial* contents of an editable label set
@@ -76,5 +86,52 @@ fun buildWayprintLayout(
         path = path,
         totalDistanceKm = route.totalDistanceKm,
         labels = placeLabels(defaultLabelRequests(path, route.totalDistanceKm), canvasBounds)
+    )
+}
+
+/**
+ * The 2 default label requests for a combined image: global Start (the first track's first
+ * point) / Finish (the last track's last point) only — no distance label, no per-track
+ * Start/Finish. Per M11's shared context: per-track labels are then something the user adds via
+ * M10.3's `addLabel`, not auto-generated.
+ */
+fun defaultCombinedLabelRequests(tracks: List<List<Pair<Double, Double>>>): List<LabelRequest> {
+    val (startX, startY) = tracks.first().first()
+    val (finishX, finishY) = tracks.last().last()
+
+    return listOf(
+        LabelRequest(
+            id = "start",
+            text = "Start",
+            anchorX = startX,
+            anchorY = startY,
+            candidates = compassCandidates(LABEL_OFFSET)
+        ),
+        LabelRequest(
+            id = "finish",
+            text = "Finish",
+            anchorX = finishX,
+            anchorY = finishY,
+            candidates = compassCandidates(LABEL_OFFSET)
+        )
+    )
+}
+
+/** [buildWayprintLayout]'s N-track equivalent: [buildCombinedWayprintRoute] wired to [defaultCombinedLabelRequests]. */
+fun buildCombinedWayprintLayout(
+    inputs: List<InputStream>,
+    preset: StoryPreset = DEFAULT_STORY_PRESET,
+    epsilon: Double = DEFAULT_RDP_EPSILON
+): CombinedWayprintLayout {
+    val route = buildCombinedWayprintRoute(inputs, preset, epsilon)
+    val tracks = route.tracks.map { track ->
+        track.copy(path = track.path.map { (x, y) -> (x + preset.marginX) to (y + preset.marginY) })
+    }
+    val canvasBounds = Rect(minX = 0.0, minY = 0.0, maxX = preset.canvasWidth, maxY = preset.canvasHeight)
+
+    return CombinedWayprintLayout(
+        tracks = tracks,
+        totalDistanceKm = route.totalDistanceKm,
+        labels = placeLabels(defaultCombinedLabelRequests(tracks.map { it.path }), canvasBounds)
     )
 }

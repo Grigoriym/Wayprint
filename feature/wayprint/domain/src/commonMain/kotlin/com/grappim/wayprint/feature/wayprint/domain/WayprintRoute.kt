@@ -1,6 +1,7 @@
 package com.grappim.wayprint.feature.wayprint.domain
 
 import com.grappim.wayprint.core.gpx.DEFAULT_RDP_EPSILON
+import com.grappim.wayprint.core.gpx.dayPalette
 import com.grappim.wayprint.core.gpx.fitProjection
 import com.grappim.wayprint.core.gpx.haversineKm
 import com.grappim.wayprint.core.gpx.parseTrack
@@ -9,6 +10,12 @@ import java.io.InputStream
 
 /** The route's projected, simplified path ready to draw, plus its total ridden distance. */
 data class WayprintRoute(val path: List<Pair<Double, Double>>, val totalDistanceKm: Double)
+
+/** One combined-image track's projected path, tagged with its `dayPalette` line color. */
+data class ColoredPath(val path: List<Pair<Double, Double>>, val color: String)
+
+/** N tracks' projected paths sharing one projection, plus their summed total distance. */
+data class CombinedWayprintRoute(val tracks: List<ColoredPath>, val totalDistanceKm: Double)
 
 /**
  * Parses [input] and builds a [WayprintRoute]: total distance summed with `haversineKm` over the
@@ -30,4 +37,26 @@ fun buildWayprintRoute(
     val projection = fitProjection(simplified, preset.routeBoxWidth, preset.routeBoxHeight)
     val path = simplified.map { projection.toSvg(it.lat, it.lon) }
     return WayprintRoute(path = path, totalDistanceKm = totalDistanceKm)
+}
+
+/**
+ * Same pipeline as [buildWayprintRoute], for N [inputs] sharing one projection: `fitProjection`
+ * fit over every track's simplified points concatenated (M11.1 confirmed the flat-list signature
+ * already yields one shared bounding box/scale), then each track projected individually through
+ * that instance and tagged with its `dayPalette(inputs.size)` color.
+ */
+fun buildCombinedWayprintRoute(
+    inputs: List<InputStream>,
+    preset: StoryPreset = DEFAULT_STORY_PRESET,
+    epsilon: Double = DEFAULT_RDP_EPSILON
+): CombinedWayprintRoute {
+    val rawPointsPerTrack = inputs.map { parseTrack(it) }
+    val totalDistanceKm = rawPointsPerTrack.sumOf { points -> points.zipWithNext(::haversineKm).sum() }
+    val simplifiedPerTrack = rawPointsPerTrack.map { rdp(it, epsilon) }
+    val projection = fitProjection(simplifiedPerTrack.flatten(), preset.routeBoxWidth, preset.routeBoxHeight)
+    val colors = dayPalette(inputs.size)
+    val tracks = simplifiedPerTrack.mapIndexed { index, simplified ->
+        ColoredPath(path = simplified.map { projection.toSvg(it.lat, it.lon) }, color = colors[index])
+    }
+    return CombinedWayprintRoute(tracks = tracks, totalDistanceKm = totalDistanceKm)
 }

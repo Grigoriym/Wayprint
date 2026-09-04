@@ -1558,11 +1558,22 @@ Shared context:
   `list()`'s only caller — no new UI behavior, `RecentsScreen`'s multi-select/Combine action is
   still M11.4.
 
-- [ ] **M11.3** — `feature:wayprint:domain`: a `buildWayprintLayout`-equivalent for N tracks —
+- [x] **M11.3** — `feature:wayprint:domain`: a `buildWayprintLayout`-equivalent for N tracks —
   shared projection (M11.1) across all combined tracks' points, one path per track tagged with its
   `dayPalette` color, default Start/Finish labels only (per shared context above).
   **Verify:** `./gradlew :feature:wayprint:domain:testAndroidHostTest`, `detekt`, `ktlintCheck`
   pass.
+  **Note:** `WayprintRoute.kt` gains `ColoredPath`/`CombinedWayprintRoute`/
+  `buildCombinedWayprintRoute` (parses each input once, sums `haversineKm` per raw track for
+  total distance, `rdp`-simplifies each, then `fitProjection` over the flattened simplified points
+  for one shared projection, each track projected individually and tagged with
+  `dayPalette(inputs.size)[index]`). `WayprintLayout.kt` gains `CombinedWayprintLayout`,
+  `defaultCombinedLabelRequests` (global Start/Finish only, reusing the same `LABEL_OFFSET`/
+  `compassCandidates` as the single-track defaults), and `buildCombinedWayprintLayout` wiring
+  them together — mirrors `buildWayprintLayout` exactly except for the label set. No change to
+  `core:storage`/`feature:wayprint:ui`; `CombinedTrack.gpxBlobs` → `List<InputStream>` conversion
+  is the caller's job, same pattern `RecentsViewModel`/`WayprintViewModel` already use for single
+  tracks (M11.4).
 
 - [ ] **M11.4** — `feature:wayprint:ui`: multi-select mode on `RecentsScreen` (long-press a row to
   enter selection, check off N tracks, a "Combine" action) building the new entity via M11.2/M11.3;
