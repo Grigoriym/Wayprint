@@ -1,0 +1,142 @@
+package com.grappim.wayprint.feature.wayprint.ui.list
+
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import org.koin.compose.viewmodel.koinViewModel
+
+private val SCREEN_PADDING = 16.dp
+private val ROW_VERTICAL_PADDING = 12.dp
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecentsScreen(
+    onTrackClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: RecentsViewModel = koinViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    var pendingDeleteId by remember { mutableStateOf<String?>(null) }
+
+    val pickGpx = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) viewModel.importGpx(uri)
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.imported.collect { id -> onTrackClick(id) }
+    }
+
+    val deleteId = pendingDeleteId
+    if (deleteId != null) {
+        AlertDialog(
+            onDismissRequest = { pendingDeleteId = null },
+            title = { Text("Delete track?") },
+            text = { Text("This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDeleteId = null
+                    viewModel.deleteTrack(deleteId)
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteId = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    Scaffold(
+        modifier = modifier,
+        topBar = { CenterAlignedTopAppBar(title = { Text("Wayprint") }) },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { pickGpx.launch("*/*") },
+                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                text = { Text("Import GPX") }
+            )
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            val error = uiState.error
+            when {
+                uiState.isLoading -> CircularProgressIndicator()
+
+                error != null -> Text(error, modifier = Modifier.padding(SCREEN_PADDING))
+
+                uiState.isEmpty -> Text(
+                    "No tracks yet — import a GPX to get started.",
+                    modifier = Modifier.padding(SCREEN_PADDING)
+                )
+
+                else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(uiState.tracks, key = { it.id }) { item ->
+                        RecentTrackRow(
+                            item = item,
+                            onClick = { onTrackClick(item.id) },
+                            onDeleteClick = { pendingDeleteId = item.id }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentTrackRow(item: RecentTrackUiItem, onClick: () -> Unit, onDeleteClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = SCREEN_PADDING, vertical = ROW_VERTICAL_PADDING),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(item.displayName)
+            Text("${item.importedDate} · ${item.distanceLabel}")
+        }
+        IconButton(onClick = onDeleteClick) {
+            Icon(Icons.Filled.Delete, contentDescription = "Delete")
+        }
+    }
+}

@@ -1341,6 +1341,11 @@ Shared context for all of M9 (re-derive nothing below from scratch):
 - Both screens keep the project's existing plain-`Text("...")`-literal convention — the `strings`
   module isn't wired into actual screen copy anywhere yet, so this doesn't introduce a new pattern
   mid-feature.
+- Import trigger (M9.4 decision, not spelled out above): a single always-visible Scaffold
+  `ExtendedFloatingActionButton` ("Import GPX") on `RecentsScreen`, used in both the empty and
+  non-empty list states — not a button embedded in the empty-state body plus a separate FAB for
+  the non-empty case. The empty-state body is just informational text ("No tracks yet — import a
+  GPX to get started."); the FAB is the one place `pickGpx.launch("*/*")` is wired.
 
 - [x] **M9.1** — new `core:navigation` module: port `Navigator`, `NavigationState`, and
   `toEntries` from `../wallosmobile`'s `core:navigation` (single-section shape — no drawer,
@@ -1364,7 +1369,7 @@ Shared context for all of M9 (re-derive nothing below from scratch):
   standard back-arrow `navigationIcon` on the existing `CenterAlignedTopAppBar`.
   **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
 
-- [ ] **M9.4** — `feature:wayprint:ui`: new `list/` subpackage — `list.RecentsRoute : NavKey` (no
+- [x] **M9.4** — `feature:wayprint:ui`: new `list/` subpackage — `list.RecentsRoute : NavKey` (no
   payload), `RecentsScreen` (empty state with the "Import GPX" action, moved from the old
   `WayprintScreen` empty branch; otherwise a list of tracks showing name/date/distance, each row
   opening it via `onTrackClick(id)` and offering a delete action that confirms via `AlertDialog`

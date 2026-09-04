@@ -1,0 +1,117 @@
+package com.grappim.wayprint.feature.wayprint.ui.list
+
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.grappim.wayprint.core.storage.TrackMetadata
+import com.grappim.wayprint.core.storage.TrackSummary
+import com.grappim.wayprint.core.storage.TracksStorage
+import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.koin.core.annotation.KoinViewModel
+import java.io.ByteArrayInputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+/**
+ * Takes [Context] straight, same precedent as [com.grappim.wayprint.feature.wayprint.ui.edit.WayprintViewModel].
+ */
+@KoinViewModel
+class RecentsViewModel(private val context: Context) : ViewModel() {
+
+    private val tracksStorage = TracksStorage(context.filesDir)
+
+    private val _uiState = MutableStateFlow(RecentsUiState())
+    val uiState: StateFlow<RecentsUiState> = _uiState.asStateFlow()
+
+    /** One-off, per `../wallosmobile` `CurrencyEditorViewModel`'s precedent: a successful import is a signal the screen navigates on, never UI state. */
+    private val _imported = Channel<String>()
+    val imported = _imported.receiveAsFlow()
+
+    init {
+        load()
+    }
+
+    fun load() {
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            val items = withContext(Dispatchers.IO) { tracksStorage.list().map { it.toUiItem() } }
+            _uiState.update { it.copy(isLoading = false, tracks = items) }
+        }
+    }
+
+    /** Parses [uri], saves it as a new track, and emits the new id via [imported] for the caller to navigate on. */
+    fun importGpx(uri: Uri) {
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val gpxBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: error("Couldn't open $uri")
+                    val layout = ByteArrayInputStream(gpxBytes).use { buildWayprintLayout(it) }
+                    val id = System.currentTimeMillis().toString()
+                    tracksStorage.save(
+                        id,
+                        gpxBytes,
+                        TrackMetadata(
+                            labelPositions = emptyList(),
+                            colorSchemeIndex = 0,
+                            displayName = resolveDisplayName(uri),
+                            importedAtEpochMillis = System.currentTimeMillis(),
+                            distanceKm = layout.totalDistanceKm
+                        )
+                    )
+                    id to tracksStorage.list().map { it.toUiItem() }
+                }
+            }
+            result
+                .onSuccess { (id, items) ->
+                    _uiState.update { it.copy(isLoading = false, tracks = items) }
+                    _imported.send(id)
+                }
+                .onFailure { e ->
+                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Couldn't read that file") }
+                }
+        }
+    }
+
+    fun deleteTrack(id: String) {
+        viewModelScope.launch {
+            val items = withContext(Dispatchers.IO) {
+                tracksStorage.delete(id)
+                tracksStorage.list().map { it.toUiItem() }
+            }
+            _uiState.update { it.copy(tracks = items) }
+        }
+    }
+
+    /** [OpenableColumns.DISPLAY_NAME] on [uri]; falls back for a share-intent `Uri` that has no such column. */
+    private fun resolveDisplayName(uri: Uri): String {
+        val name = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (nameIndex >= 0 && cursor.moveToFirst()) cursor.getString(nameIndex) else null
+        }
+        return name ?: "Untitled route"
+    }
+
+    private fun TrackSummary.toUiItem(): RecentTrackUiItem {
+        val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+        return RecentTrackUiItem(
+            id = id,
+            displayName = metadata.displayName,
+            importedDate = dateFormat.format(Date(metadata.importedAtEpochMillis)),
+            distanceLabel = String.format(Locale.ROOT, "%.1f km", metadata.distanceKm)
+        )
+    }
+}
