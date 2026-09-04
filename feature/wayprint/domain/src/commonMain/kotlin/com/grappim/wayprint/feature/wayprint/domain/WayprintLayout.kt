@@ -1,10 +1,23 @@
 package com.grappim.wayprint.feature.wayprint.domain
 
 import com.grappim.wayprint.core.gpx.DEFAULT_RDP_EPSILON
-import java.io.InputStream
-import java.util.Locale
+import kotlinx.io.Source
+import kotlin.math.abs
+import kotlin.math.floor
 
 private const val LABEL_OFFSET = 24.0
+
+// Portable replacement for `String.format(Locale.ROOT, "%.1f km", ...)`, which relies on
+// java.util.Locale/BigDecimal HALF_UP formatting unavailable on Kotlin/Native. Rounds the
+// magnitude half-up (ties away from zero, matching Java's %f) and reattaches the original sign,
+// since Java's formatter prints e.g. "-0.0 km" for a small negative value that rounds to zero.
+private fun formatOneDecimalKm(totalDistanceKm: Double): String {
+    val magnitudeTenths = abs(totalDistanceKm) * 10.0
+    val flr = floor(magnitudeTenths)
+    val roundedTenths = (if (magnitudeTenths - flr >= 0.5) flr + 1.0 else flr).toLong()
+    val sign = if (totalDistanceKm < 0.0) "-" else ""
+    return "$sign${roundedTenths / 10}.${roundedTenths % 10} km"
+}
 
 /**
  * The route's projected path plus its placed labels, in canvas space — the shape M4's renderer
@@ -59,7 +72,7 @@ fun defaultLabelRequests(path: List<Pair<Double, Double>>, totalDistanceKm: Doub
         ),
         LabelRequest(
             id = "distance",
-            text = String.format(Locale.ROOT, "%.1f km", totalDistanceKm),
+            text = formatOneDecimalKm(totalDistanceKm),
             anchorX = bboxCenterX,
             anchorY = bboxCenterY,
             candidates = compassCandidates(LABEL_OFFSET)
@@ -74,7 +87,7 @@ fun defaultLabelRequests(path: List<Pair<Double, Double>>, totalDistanceKm: Doub
  * the full canvas bounds.
  */
 fun buildWayprintLayout(
-    input: InputStream,
+    input: Source,
     preset: StoryPreset = DEFAULT_STORY_PRESET,
     epsilon: Double = DEFAULT_RDP_EPSILON
 ): WayprintLayout {
@@ -119,7 +132,7 @@ fun defaultCombinedLabelRequests(tracks: List<List<Pair<Double, Double>>>): List
 
 /** [buildWayprintLayout]'s N-track equivalent: [buildCombinedWayprintRoute] wired to [defaultCombinedLabelRequests]. */
 fun buildCombinedWayprintLayout(
-    inputs: List<InputStream>,
+    inputs: List<Source>,
     preset: StoryPreset = DEFAULT_STORY_PRESET,
     epsilon: Double = DEFAULT_RDP_EPSILON
 ): CombinedWayprintLayout {

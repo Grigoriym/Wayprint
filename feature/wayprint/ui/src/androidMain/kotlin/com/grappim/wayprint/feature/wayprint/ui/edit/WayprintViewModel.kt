@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 import java.io.ByteArrayInputStream
@@ -74,7 +76,8 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
                 if (single != null) {
                     runCatching {
                         val preset = STORY_PRESETS[single.metadata.storyPresetIndex]
-                        val layout = ByteArrayInputStream(single.gpxBytes).use { buildWayprintLayout(it, preset) }
+                        val layout = ByteArrayInputStream(single.gpxBytes).asSource().buffered()
+                            .use { buildWayprintLayout(it, preset) }
                         val labels = single.metadata.labels.map { it.toPlacedLabel() }
                         RestoredTrack(
                             loaded = LoadedTrack.Single(single.gpxBytes, single.metadata),
@@ -87,7 +90,7 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
                     val combined = tracksStorage.loadCombined(trackId) ?: return@withContext null
                     runCatching {
                         val preset = STORY_PRESETS[combined.metadata.storyPresetIndex]
-                        val inputs = combined.gpxBlobs.map { ByteArrayInputStream(it) }
+                        val inputs = combined.gpxBlobs.map { ByteArrayInputStream(it).asSource().buffered() }
                         val layout = buildCombinedWayprintLayout(inputs, preset)
                         val labels = combined.metadata.labels.map { it.toPlacedLabel() }
                         RestoredTrack(

@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import org.koin.core.annotation.KoinViewModel
 import java.io.ByteArrayInputStream
 import java.text.SimpleDateFormat
@@ -64,7 +66,8 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
                     val gpxBytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                         ?: error("Couldn't open $uri")
                     val preset = STORY_PRESETS[storyPresetIndex]
-                    val layout = ByteArrayInputStream(gpxBytes).use { buildWayprintLayout(it, preset) }
+                    val layout = ByteArrayInputStream(gpxBytes).asSource().buffered()
+                        .use { buildWayprintLayout(it, preset) }
                     val id = System.currentTimeMillis().toString()
                     tracksStorage.save(
                         id,
@@ -134,7 +137,7 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
                     val tracks = ids.map { id -> tracksStorage.load(id) ?: error("Missing track $id") }
                     val gpxBlobs = tracks.map { it.gpxBytes }
                     val preset = STORY_PRESETS[storyPresetIndex]
-                    val inputs = gpxBlobs.map { ByteArrayInputStream(it) }
+                    val inputs = gpxBlobs.map { ByteArrayInputStream(it).asSource().buffered() }
                     val layout = buildCombinedWayprintLayout(inputs, preset)
                     val id = System.currentTimeMillis().toString()
                     tracksStorage.saveCombined(

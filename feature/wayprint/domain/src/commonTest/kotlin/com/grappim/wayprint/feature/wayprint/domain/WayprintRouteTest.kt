@@ -1,5 +1,7 @@
 package com.grappim.wayprint.feature.wayprint.domain
 
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -13,7 +15,7 @@ class WayprintRouteTest {
     fun `total distance on the fixture matches the Python reference's sum of haversine_km over raw points`() {
         val fixture = fixtureStream()
 
-        val route = fixture.use { buildWayprintRoute(it) }
+        val route = fixture.use { buildWayprintRoute(it.asSource().buffered()) }
 
         // Captured by running parse_track() then summing haversine_km() over consecutive raw
         // points from gpx_route_art.py on the same fixture file.
@@ -22,7 +24,8 @@ class WayprintRouteTest {
 
     @Test
     fun `combined route sums per-track distance and assigns one dayPalette color per track`() {
-        val route = listOf(fixtureStream(), fixtureStream()).use { buildCombinedWayprintRoute(it) }
+        val route = listOf(fixtureStream(), fixtureStream())
+            .use { streams -> buildCombinedWayprintRoute(streams.map { it.asSource().buffered() }) }
 
         assertEquals(2, route.tracks.size)
         assertEquals(2 * 26.15576342355938, route.totalDistanceKm, 1e-9)

@@ -1,7 +1,7 @@
 # Wayprint checklist
 
-**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1-M15.2 done,
-next is M15.3. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
+**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1-M15.3 done,
+next is M15.4. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
 and moving Android-only code out of `commonMain`) are complete and archived to
 `docs/CHECKLIST_ARCHIVE.md`. M15 is fully buildable/runnable/verifiable on this dev machine; M16
 adds iOS after M15 lands, but its verification is capped — this machine is Linux, so an iOS app
@@ -130,13 +130,24 @@ target half-wired and everything red, since each step still needs its own passin
   `.asSource().buffered()` adapter at its 2 call sites to keep `./gradlew build` green — its own
   public `InputStream` param is M15.3's job, not this step's.
 
-- [ ] **M15.3** — `feature:wayprint:domain`: replace `WayprintLayout.kt`/`WayprintRoute.kt`'s
+- [x] **M15.3** — `feature:wayprint:domain`: replace `WayprintLayout.kt`/`WayprintRoute.kt`'s
   `InputStream` param with the `kotlinx-io` type M15.2 settled on, and `String.format(Locale.ROOT,
   "%.1f km", ...)` with a hand-written one-decimal formatter (no `java.util.Locale` on
   Kotlin/Native).
   **Verify:** `./gradlew :feature:wayprint:domain:testAndroidHostTest`, `detekt`, `ktlintCheck`
   pass; the `"%.1f km"` label text is byte-identical for existing test fixtures (negative/zero/
   large distances, not just the common case).
+  Note: both functions now take `kotlinx.io.Source` directly (M15.2 already adapted internally
+  via `.asSource().buffered()`; that adaptation now lives at the callers instead). New
+  `formatOneDecimalKm` in `WayprintLayout.kt` rounds the magnitude half-up-away-from-zero (`diff
+  >= 0.5` after `floor`, matching Java's `%f` `RoundingMode.HALF_UP` semantics — verified against
+  a real JVM `String.format` run, not assumed) then reattaches the original sign, since Java's
+  formatter prints e.g. `"-0.0 km"` for a small negative value that rounds to zero magnitude;
+  `DefaultLabelRequestsTest.kt` pins this against 5 cases including that exact edge and a large
+  value. `feature:wayprint:ui`'s two `ByteArrayInputStream` call sites (`WayprintViewModel`,
+  `RecentsViewModel`) now wrap with `.asSource().buffered()` before calling into domain, needing a
+  new `implementation(libs.kotlinx.io.core)` in that module's `build.gradle.kts` (previously only
+  `core:gpx`/`feature:wayprint:domain` depended on it directly).
 
 - [ ] **M15.4** — `core:storage`: replace `TracksStorage.kt`'s `java.io.File` with `kotlinx-io`'s
   `Path`/`SystemFileSystem`, mirroring `TaigaMobileNova/core/storage`'s own `File`→`kotlinx-io`

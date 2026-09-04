@@ -1,6 +1,8 @@
 package com.grappim.wayprint.feature.wayprint.domain
 
 import com.grappim.wayprint.core.gpx.dayPalette
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -26,7 +28,7 @@ class StoryPresetTest {
         val fixture =
             requireNotNull(object {}.javaClass.getResourceAsStream("/fixtures/04 Riesa - Meissen.gpx"))
 
-        val layout = fixture.use { buildWayprintLayout(it, preset = SQUARE_STORY_PRESET) }
+        val layout = fixture.use { buildWayprintLayout(it.asSource().buffered(), preset = SQUARE_STORY_PRESET) }
 
         assertEquals(3, layout.labels.size)
 

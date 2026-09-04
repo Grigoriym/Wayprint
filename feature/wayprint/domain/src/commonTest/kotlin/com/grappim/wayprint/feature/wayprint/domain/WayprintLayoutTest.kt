@@ -1,5 +1,7 @@
 package com.grappim.wayprint.feature.wayprint.domain
 
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -12,7 +14,7 @@ class WayprintLayoutTest {
         val fixture =
             requireNotNull(object {}.javaClass.getResourceAsStream("/fixtures/04 Riesa - Meissen.gpx"))
 
-        val layout = fixture.use { buildWayprintLayout(it) }
+        val layout = fixture.use { buildWayprintLayout(it.asSource().buffered()) }
 
         assertEquals(3, layout.labels.size)
 
@@ -49,7 +51,7 @@ class WayprintLayoutTest {
         )
 
         val layout = try {
-            buildCombinedWayprintLayout(fixtures)
+            buildCombinedWayprintLayout(fixtures.map { it.asSource().buffered() })
         } finally {
             fixtures.forEach { it.close() }
         }
