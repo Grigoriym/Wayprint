@@ -1,7 +1,7 @@
 # Wayprint checklist
 
-**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1 done, next is
-M15.2. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
+**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1-M15.2 done,
+next is M15.3. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
 and moving Android-only code out of `commonMain`) are complete and archived to
 `docs/CHECKLIST_ARCHIVE.md`. M15 is fully buildable/runnable/verifiable on this dev machine; M16
 adds iOS after M15 lands, but its verification is capped — this machine is Linux, so an iOS app
@@ -106,7 +106,7 @@ target half-wired and everything red, since each step still needs its own passin
   call sites. Added `RoundingTest.kt` covering exact `.5` ties at scale 0 and 1 (e.g. `2.5`→`2`,
   `1.25`→`1.2`), since none of the existing golden-value fixtures happened to land on an exact tie.
 
-- [ ] **M15.2** — `core:gpx`: replace `java.io.InputStream`/`java.io.StringReader` (`RouteArt.kt`,
+- [x] **M15.2** — `core:gpx`: replace `java.io.InputStream`/`java.io.StringReader` (`RouteArt.kt`,
   `GpxParser.kt`) with `kotlinx-io-core`'s `Source`/`Buffer` (add the dependency to
   `gradle/libs.versions.toml` + `core:gpx`'s `commonMain.dependencies`), and replace
   `javax.xml.parsers.DocumentBuilderFactory`'s DOM walk with a portable GPX parse. **Open design
@@ -117,6 +117,18 @@ target half-wired and everything red, since each step still needs its own passin
   **Verify:** `./gradlew :core:gpx:testAndroidHostTest`, `detekt`, `ktlintCheck` pass — parses the
   existing GPX fixture(s) identically to before (byte-for-byte same `WayprintRoute`/`TrackPoint`
   output).
+  Note: went hand-rolled — the DOM usage was only ever "first `<trk>`, its `<trkpt lat lon>`
+  descendants, each one's first `<ele>` descendant", which `xmlutil` would still require a
+  hand-written walk on top of, at the cost of a real dependency and its own API to learn. The
+  scanner tracks nesting with a bare `Int` depth counter (no name stack needed — well-formed XML
+  guarantees the tag closing at a given depth is the one that opened it there), matches elements
+  by local name only (namespace-blind, unlike the old namespace-aware DOM builder — a non-issue
+  for real GPX exports, which don't mix namespaces on `trk`/`trkpt`/`ele`), and is XXE-safe by
+  construction (comments/CDATA/PIs/DOCTYPEs are skipped verbatim, never interpreted) rather than
+  needing the old entity-resolver workaround. `parseTrack`'s signature changed to `Source`, but
+  `WayprintRoute.kt` (`feature:wayprint:domain`, still `InputStream` until M15.3) only needed a
+  `.asSource().buffered()` adapter at its 2 call sites to keep `./gradlew build` green — its own
+  public `InputStream` param is M15.3's job, not this step's.
 
 - [ ] **M15.3** — `feature:wayprint:domain`: replace `WayprintLayout.kt`/`WayprintRoute.kt`'s
   `InputStream` param with the `kotlinx-io` type M15.2 settled on, and `String.format(Locale.ROOT,

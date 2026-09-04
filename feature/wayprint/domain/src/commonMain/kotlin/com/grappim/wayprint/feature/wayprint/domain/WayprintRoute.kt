@@ -6,6 +6,8 @@ import com.grappim.wayprint.core.gpx.fitProjection
 import com.grappim.wayprint.core.gpx.haversineKm
 import com.grappim.wayprint.core.gpx.parseTrack
 import com.grappim.wayprint.core.gpx.rdp
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import java.io.InputStream
 
 /** The route's projected, simplified path ready to draw, plus its total ridden distance. */
@@ -31,7 +33,7 @@ fun buildWayprintRoute(
     preset: StoryPreset = DEFAULT_STORY_PRESET,
     epsilon: Double = DEFAULT_RDP_EPSILON
 ): WayprintRoute {
-    val rawPoints = parseTrack(input)
+    val rawPoints = parseTrack(input.asSource().buffered())
     val totalDistanceKm = rawPoints.zipWithNext(::haversineKm).sum()
     val simplified = rdp(rawPoints, epsilon)
     val projection = fitProjection(simplified, preset.routeBoxWidth, preset.routeBoxHeight)
@@ -50,7 +52,7 @@ fun buildCombinedWayprintRoute(
     preset: StoryPreset = DEFAULT_STORY_PRESET,
     epsilon: Double = DEFAULT_RDP_EPSILON
 ): CombinedWayprintRoute {
-    val rawPointsPerTrack = inputs.map { parseTrack(it) }
+    val rawPointsPerTrack = inputs.map { parseTrack(it.asSource().buffered()) }
     val totalDistanceKm = rawPointsPerTrack.sumOf { points -> points.zipWithNext(::haversineKm).sum() }
     val simplifiedPerTrack = rawPointsPerTrack.map { rdp(it, epsilon) }
     val projection = fitProjection(simplifiedPerTrack.flatten(), preset.routeBoxWidth, preset.routeBoxHeight)

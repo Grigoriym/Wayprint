@@ -1,5 +1,7 @@
 package com.grappim.wayprint.core.gpx
 
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -10,7 +12,7 @@ class RouteArtTest {
         val fixture =
             requireNotNull(object {}.javaClass.getResourceAsStream("/fixtures/04 Riesa - Meissen.gpx"))
 
-        val svgPoints = fixture.use { buildRouteArt(it) }
+        val svgPoints = fixture.use { buildRouteArt(it.asSource().buffered()) }
 
         // Captured by running parse_track() -> rdp(epsilon=0.0006) -> fit_projection(860, 980)
         // -> to_svg() from gpx_route_art.py on the same fixture file.

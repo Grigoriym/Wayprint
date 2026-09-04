@@ -1,5 +1,7 @@
 package com.grappim.wayprint.core.gpx
 
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -14,7 +16,7 @@ class GpxParserTest {
         val fixture =
             requireNotNull(object {}.javaClass.getResourceAsStream("/fixtures/04 Riesa - Meissen.gpx"))
 
-        val points = fixture.use { parseTrack(it) }
+        val points = fixture.use { parseTrack(it.asSource().buffered()) }
 
         assertEquals(614, points.size)
 

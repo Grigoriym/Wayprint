@@ -1,6 +1,6 @@
 package com.grappim.wayprint.core.gpx
 
-import java.io.InputStream
+import kotlinx.io.Source
 
 const val DEFAULT_RDP_EPSILON = 0.0006
 
@@ -9,7 +9,7 @@ const val DEFAULT_RDP_EPSILON = 0.0006
  * parse -> rdp -> fit_projection -> to_svg call sequence in `gpx_route_art.py` for a single track.
  */
 fun buildRouteArt(
-    input: InputStream,
+    input: Source,
     epsilon: Double = DEFAULT_RDP_EPSILON,
     boxW: Double = DEFAULT_BOX_WIDTH,
     boxH: Double = DEFAULT_BOX_HEIGHT
