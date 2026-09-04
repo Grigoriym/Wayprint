@@ -19,7 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -94,6 +97,28 @@ fun WayprintScreen(
 
     val layout = uiState.layout
     val error = uiState.error
+    val preset = STORY_PRESETS[uiState.storyPresetIndex]
+
+    fun saveCurrentLayout() {
+        val currentLayout = layout ?: return
+        val bitmap = renderStoryBitmap(currentLayout, preset, uiState.colorSchemeIndex)
+        val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            pendingSaveBitmap = bitmap
+            requestSavePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            viewModel.saveToGallery(bitmap)
+        }
+    }
+
+    fun shareCurrentLayout() {
+        val currentLayout = layout ?: return
+        viewModel.share(renderStoryBitmap(currentLayout, preset, uiState.colorSchemeIndex))
+    }
 
     Scaffold(
         modifier = modifier,
@@ -104,6 +129,21 @@ fun WayprintScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (uiState.canUndo) {
+                        IconButton(onClick = viewModel::undo) {
+                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
+                        }
+                    }
+                    if (layout != null) {
+                        IconButton(onClick = ::saveCurrentLayout) {
+                            Icon(Icons.Filled.Save, contentDescription = "Save")
+                        }
+                        IconButton(onClick = ::shareCurrentLayout) {
+                            Icon(Icons.Filled.Share, contentDescription = "Share")
+                        }
                     }
                 }
             )
@@ -125,7 +165,6 @@ fun WayprintScreen(
                 }
 
                 layout != null -> Box(modifier = Modifier.fillMaxSize()) {
-                    val preset = STORY_PRESETS[uiState.storyPresetIndex]
                     when (layout) {
                         is EditableWayprintLayout.Single -> {
                             WayprintCanvas(
@@ -164,52 +203,12 @@ fun WayprintScreen(
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = "Add label")
                     }
-                    if (uiState.canUndo) {
-                        Button(
-                            onClick = viewModel::undo,
-                            modifier = Modifier.align(Alignment.TopStart).padding(SCREEN_PADDING)
-                        ) {
-                            Text("Undo")
-                        }
-                    }
                     uiState.selectedLabelId?.let { selectedLabelId ->
                         Button(
                             onClick = { viewModel.removeLabel(selectedLabelId) },
                             modifier = Modifier.align(Alignment.BottomStart).padding(SCREEN_PADDING)
                         ) {
                             Text("Delete label")
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(SCREEN_PADDING),
-                        horizontalArrangement = Arrangement.spacedBy(SCREEN_PADDING)
-                    ) {
-                        Button(
-                            onClick = {
-                                val bitmap = renderStoryBitmap(layout, preset, uiState.colorSchemeIndex)
-                                val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
-                                    ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-                                    ) != PackageManager.PERMISSION_GRANTED
-                                if (needsPermission) {
-                                    pendingSaveBitmap = bitmap
-                                    requestSavePermission.launch(
-                                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-                                    )
-                                } else {
-                                    viewModel.saveToGallery(bitmap)
-                                }
-                            }
-                        ) {
-                            Text("Save")
-                        }
-                        Button(
-                            onClick = {
-                                viewModel.share(renderStoryBitmap(layout, preset, uiState.colorSchemeIndex))
-                            }
-                        ) {
-                            Text("Share")
                         }
                     }
                     pendingAddPosition?.let { (x, y) ->

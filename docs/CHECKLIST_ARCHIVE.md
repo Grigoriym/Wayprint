@@ -1727,3 +1727,86 @@ Shared context:
   pipeline changes needed" was accurate for the pipeline functions' signatures, just not for
   which of their callers actually passed the non-default preset through.
 
+## M13 — Declutter the edit toolbar: split Save/Share, move global actions off the canvas
+
+Promoted from a design discussion in chat (2026-09-04, not a prior backlog item) after auditing
+`WayprintScreen.kt`: every canvas corner plus bottom-center is already occupied by a floating
+button (`TopEnd` color swatches, `BottomEnd` Add-label FAB, `TopStart` Undo (conditional),
+`BottomStart` Delete-label (conditional), `BottomCenter` Export) — no room is left for the next
+feature to add a button. On top of the clutter, `WayprintViewModel.exportAndShare()`
+(`edit/WayprintViewModel.kt:174-191`) has a real UX bug: it silently inserts the bitmap into
+`MediaStore` (a permanent save, no confirmation shown) *and* opens the share sheet, under one
+unlabeled "Export" button — sharing has an undisclosed save side-effect.
+
+Shared context:
+
+- Confirmed by grep: no `FileProvider`, no `<provider>` entry, and no `res/xml/` resource
+  directory exist anywhere in `androidApp` yet; no `SnackbarHost`/`Snackbar` exists anywhere in
+  the app either. Both are new plumbing this milestone introduces, not a rewire of something
+  already there.
+- Design split, matching the convention in apps like Google Photos' editor: **Save** writes the
+  bitmap into `MediaStore` (what `exportAndShare` already does) and confirms it happened; **Share**
+  renders to a temp file under `context.cacheDir`, gets a `content://` URI via `FileProvider`, and
+  opens the share sheet — with no `MediaStore` write, so sharing stops having an undisclosed
+  permanent save.
+- `TopAppBar`'s `actions` slot (Material3-standard; `WayprintScreen.kt:91-98` already has the bar,
+  currently empty of actions) is where Undo/Save/Share move to — a `Row` of `IconButton`s, not a
+  `DropdownMenu`/overflow. Don't build an empty overflow menu speculatively for a 3rd/4th future
+  action that doesn't exist yet (Simplicity First) — a `Row` is trivially extended with one more
+  `IconButton` when that day comes, no new infra required.
+- What stays put and why: the Add-label FAB (`BottomEnd`) and the selected-label Delete button
+  (`BottomStart`) are direct manipulation of canvas content, not global app actions — they don't
+  belong in the app bar and this milestone doesn't touch them. Color-scheme swatches (`TopEnd`)
+  also stay as-is — relocating them wasn't part of what was scoped here (no bottom-sheet/picker
+  precedent exists in this app to reuse) and isn't required to fix either the clutter or the
+  Save/Share bug; see Backlog below.
+- Undo's existing conditional visibility (`uiState.canUndo`) carries over unchanged, just
+  relocated from a floating `Button` to a `TopAppBar` `IconButton`.
+
+- [x] **M13.1** — `feature:wayprint:ui`: split `WayprintViewModel.exportAndShare(bitmap)` into
+  `saveToGallery(bitmap)` (the existing `MediaStore.Images.Media.insertImage` call, unchanged,
+  plus a one-shot success signal the screen can show as a `Snackbar` — e.g. a buffered
+  `SharedFlow`) and `share(bitmap)` (writes the PNG to `context.cacheDir`, builds a `content://`
+  URI via `androidx.core.content.FileProvider`, launches the existing share `Intent` with that
+  URI, no `MediaStore` write). Add the `androidApp` manifest `<provider>` entry and
+  `res/xml/file_paths.xml` (`cache-path`) the `FileProvider` needs. `WayprintScreen`'s single
+  `Export` button becomes two buttons (still wherever's convenient for this step — button
+  *placement* is M13.2's job, not this one); wire a `SnackbarHost` in the `Scaffold` to show the
+  save confirmation.
+  **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+  Emulator check (`emulator-testing` skill): tapping Save shows a confirmation and creates exactly
+  one new `MediaStore` row (content query, same pattern as M5.2/M5.4's frictions); tapping Share
+  opens the share sheet and creates **no** new `MediaStore` row; sharing to another app succeeds
+  using the `FileProvider` URI (permission not denied).
+  Note: the two buttons landed as a `Row` at `BottomCenter`, replacing the old single `Export`
+  button 1:1 — no other placement changed, per this step's own "placement is M13.2's job" scope.
+  Emulator check on `gplay debug`/`Medium_Phone_API_36.1`, all three points passed: Save's
+  "Saved to gallery" Snackbar showed and the `content://media/external/images/media` row count
+  went from 2 → 3 on one tap; Share's chooser opened with the count staying at 3, and picking a
+  real target (Messages) opened cleanly with zero exceptions. One logcat wrinkle worth flagging:
+  the chooser sheet's own preview-thumbnail loader (`com.android.intentresolver`) throws a
+  `SecurityException` reading the URI before a target is picked — cosmetic (no thumbnail, chooser
+  still lists apps and the picked target's own read succeeds), documented as a generic gotcha in
+  the `emulator-testing` skill rather than here.
+
+- [x] **M13.2** — `feature:wayprint:ui`: move Undo, Save, and Share from floating `Button`s
+  (`TopStart`/`BottomCenter`) into `WayprintScreen`'s `TopAppBar` `actions`, per shared context.
+  `BottomStart`/`BottomEnd`/`TopEnd` overlays (Delete-label, Add-label FAB, color swatches) are
+  unchanged.
+  **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+  Emulator check: Undo only appears in the top bar when `canUndo`, same as before; Save/Share both
+  work identically to M13.1's verify from their new location; only the FAB, Delete-label (when a
+  label is selected), and color swatches remain as floating canvas overlays.
+  Note: `Icons.Filled.Save`/`Icons.AutoMirrored.Filled.Undo` aren't in `material-icons-core`
+  (confirmed by inspecting the jar) — swapped the `jetbrains-compose-icons` catalog alias from
+  `material-icons-core` to `material-icons-extended` (same version), which `KmpCompose.kt`'s
+  comment already anticipated ("Add the `-extended` artifact if a wider icon set is ever
+  needed"). `preset` and the Save/Share click handlers were hoisted above `Scaffold` so the
+  `TopAppBar`'s `actions` lambda can reach them; Save/Share `IconButton`s are gated on
+  `layout != null`, matching the old Row's visibility. Emulator check on `gplay debug`/
+  `Medium_Phone_API_36.1`: Undo absent on a freshly opened track, appeared after adding a label;
+  Save showed the "Saved to gallery" Snackbar and the `content://media/external/images/media`
+  row count went 3→4 on one tap; Share opened the chooser with the count staying at 4, and
+  picking Messages opened its "Select recipients" screen cleanly with no exception logged for
+  the app's own package.
+
