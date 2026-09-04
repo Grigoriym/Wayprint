@@ -1,9 +1,8 @@
 # Wayprint checklist
 
-**Current step:** M11.4 done, M12 scoped and ready to start at M12.1. M0–M11 (the full MVP
-roadmap) are complete — moved to `docs/CHECKLIST_ARCHIVE.md`. Release CI/publish was explicitly
-deferred by the user (keystores ready since M6.3) — pick that back up only when they say the app
-is ready to ship.
+**Current step:** M12.1 done, next up is M12.2. M0–M11 (the full MVP roadmap) are complete —
+moved to `docs/CHECKLIST_ARCHIVE.md`. Release CI/publish was explicitly deferred by the user
+(keystores ready since M6.3) — pick that back up only when they say the app is ready to ship.
 
 ## How to use this
 
@@ -93,7 +92,7 @@ Shared context:
   `CombinedTrackMetadata` has no field to read) — the new `storyPresetIndex` needs the same
   read-back for both kinds now that both persist one.
 
-- [ ] **M12.1** — `feature:wayprint:domain`: add `SQUARE_STORY_PRESET` and `STORY_PRESETS:
+- [x] **M12.1** — `feature:wayprint:domain`: add `SQUARE_STORY_PRESET` and `STORY_PRESETS:
   List<StoryPreset>` (story at index 0, square at index 1) to `StoryPreset.kt`, per the exact
   values and the canvas-width-invariant reasoning in shared context above. Confirm — don't
   assume — that no downstream numeric drift exists by running the pipeline against the square
@@ -101,6 +100,9 @@ Shared context:
   the story preset.
   **Verify:** `./gradlew :feature:wayprint:domain:testAndroidHostTest`, `detekt`, `ktlintCheck`
   pass.
+  Note: added a `StoryPresetTest` case reusing `WayprintLayoutTest`'s fixture GPX against
+  `SQUARE_STORY_PRESET` — confirmed 3 non-overlapping labels stay within the square canvas
+  bounds, no numeric drift from the existing story-preset pipeline.
 
 - [ ] **M12.2** — `core:storage`: add a persisted preset selector (e.g. `storyPresetIndex: Int =
   0`) to both `TrackMetadata` and `CombinedTrackMetadata` — the default of `0` is what lets every

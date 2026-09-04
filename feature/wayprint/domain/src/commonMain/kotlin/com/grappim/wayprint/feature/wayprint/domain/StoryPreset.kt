@@ -25,6 +25,22 @@ val DEFAULT_STORY_PRESET = StoryPreset(
     marginY = 470.0
 )
 
+/** M12's square template: same 1080-wide canvas as [DEFAULT_STORY_PRESET], symmetric margins. */
+val SQUARE_STORY_PRESET = StoryPreset(
+    canvasWidth = 1080.0,
+    canvasHeight = 1080.0,
+    routeBoxWidth = 860.0,
+    routeBoxHeight = 860.0,
+    marginX = 110.0,
+    marginY = 110.0
+)
+
+/**
+ * The fixed, index-based list of selectable canvas templates — story at index 0, square at
+ * index 1 — mirroring [PRESET_COLOR_SCHEMES]' shape so a missing persisted index defaults to 0.
+ */
+val STORY_PRESETS: List<StoryPreset> = listOf(DEFAULT_STORY_PRESET, SQUARE_STORY_PRESET)
+
 /** The 3 colors M4's renderer paints with, grouped so a scheme can be swapped as one unit. */
 data class ColorScheme(val backgroundColor: String, val lineColor: String, val textColor: String)
 
