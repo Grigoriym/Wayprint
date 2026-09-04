@@ -11,8 +11,20 @@ class LabelPlacementTest {
     @Test
     fun `labels far apart each place at their preferred candidate`() {
         val requests = listOf(
-            LabelRequest(text = "AAAA", anchorX = 100.0, anchorY = 100.0, candidates = compassCandidates(10.0)),
-            LabelRequest(text = "AAAA", anchorX = 800.0, anchorY = 800.0, candidates = compassCandidates(10.0))
+            LabelRequest(
+                id = "a",
+                text = "AAAA",
+                anchorX = 100.0,
+                anchorY = 100.0,
+                candidates = compassCandidates(10.0)
+            ),
+            LabelRequest(
+                id = "b",
+                text = "AAAA",
+                anchorX = 800.0,
+                anchorY = 800.0,
+                candidates = compassCandidates(10.0)
+            )
         )
 
         val placed = placeLabels(requests, canvasBounds)
@@ -29,8 +41,20 @@ class LabelPlacementTest {
     @Test
     fun `lower-priority label falls back when its preferred candidate collides`() {
         val requests = listOf(
-            LabelRequest(text = "AAAA", anchorX = 500.0, anchorY = 500.0, candidates = compassCandidates(10.0)),
-            LabelRequest(text = "AAAA", anchorX = 505.0, anchorY = 500.0, candidates = compassCandidates(10.0))
+            LabelRequest(
+                id = "a",
+                text = "AAAA",
+                anchorX = 500.0,
+                anchorY = 500.0,
+                candidates = compassCandidates(10.0)
+            ),
+            LabelRequest(
+                id = "b",
+                text = "AAAA",
+                anchorX = 505.0,
+                anchorY = 500.0,
+                candidates = compassCandidates(10.0)
+            )
         )
 
         val placed = placeLabels(requests, canvasBounds)
@@ -49,7 +73,8 @@ class LabelPlacementTest {
     @Test
     fun `falls back to the last candidate rather than throwing when none clear`() {
         val tinyCanvas = Rect(minX = 0.0, minY = 0.0, maxX = 1.0, maxY = 1.0)
-        val request = LabelRequest(text = "A", anchorX = 0.0, anchorY = 0.0, candidates = compassCandidates(5.0))
+        val request =
+            LabelRequest(id = "a", text = "A", anchorX = 0.0, anchorY = 0.0, candidates = compassCandidates(5.0))
 
         val placed = placeLabel(request, placed = emptyList(), canvasBounds = tinyCanvas)
 
@@ -62,7 +87,13 @@ class LabelPlacementTest {
     @Test
     fun `movedTo repositions a label and recomputes its bounding box around the new position`() {
         val request =
-            LabelRequest(text = "AAAA", anchorX = 100.0, anchorY = 100.0, candidates = compassCandidates(10.0))
+            LabelRequest(
+                id = "a",
+                text = "AAAA",
+                anchorX = 100.0,
+                anchorY = 100.0,
+                candidates = compassCandidates(10.0)
+            )
         val placed = placeLabel(request, placed = emptyList(), canvasBounds = canvasBounds)
 
         val moved = placed.movedTo(x = 300.0, y = 400.0)

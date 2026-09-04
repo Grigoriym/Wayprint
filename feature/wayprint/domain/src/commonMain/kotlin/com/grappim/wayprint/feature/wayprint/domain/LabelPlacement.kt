@@ -9,8 +9,12 @@ private const val TEXT_HEIGHT = 14.0
  */
 data class LabelCandidate(val dx: Double, val dy: Double, val anchor: TextAnchor)
 
-/** A label waiting to be placed: its text, fixed anchor point, and ordered candidates to try. */
+/**
+ * A label waiting to be placed: its [id] (carried through to the resulting [PlacedLabel]), text,
+ * fixed anchor point, and ordered candidates to try.
+ */
 data class LabelRequest(
+    val id: String,
     val text: String,
     val anchorX: Double,
     val anchorY: Double,
@@ -56,7 +60,14 @@ fun placeLabel(request: LabelRequest, placed: List<Rect>, canvasBounds: Rect): P
         val box = boundingBox(x, y, candidate.anchor, width, height)
         val clears = box.within(canvasBounds) && placed.none { it.overlaps(box) }
         if (clears || index == request.candidates.lastIndex) {
-            return PlacedLabel(text = request.text, x = x, y = y, anchor = candidate.anchor, boundingBox = box)
+            return PlacedLabel(
+                id = request.id,
+                text = request.text,
+                x = x,
+                y = y,
+                anchor = candidate.anchor,
+                boundingBox = box
+            )
         }
     }
     error("LabelRequest.candidates must not be empty")

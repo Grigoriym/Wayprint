@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M9.5 done — M9 (recent tracks) complete
+**Current step:** M10.1 done
 
 ## How to use this
 
@@ -1440,7 +1440,7 @@ Shared context:
   "no saved labels yet" fallback on first load — the former matches M9's "every import saves
   immediately" precedent more closely.
 
-- [ ] **M10.1** — `feature:wayprint:domain`: replace `WayprintLayout`'s implicit "always these 3"
+- [x] **M10.1** — `feature:wayprint:domain`: replace `WayprintLayout`'s implicit "always these 3"
   assumption with an explicit, arbitrary `List<PlacedLabel>` the caller supplies/mutates.
   `buildWayprintLayout` keeps producing the 3 defaults (Start/Finish/distance) as a separate
   `defaultLabelRequests(route, preset)`-style function, but no longer owns "the" label set —
@@ -1449,6 +1449,19 @@ Shared context:
   identity rather than by index).
   **Verify:** `./gradlew :feature:wayprint:domain:testAndroidHostTest`, `detekt`, `ktlintCheck`
   pass.
+
+  **Note:** `id: String` landed on `LabelRequest` too, not just `PlacedLabel` — `placeLabel` needs
+  somewhere caller-controlled to read a stable id from before copying it onto the `PlacedLabel` it
+  returns; an index/counter-assigned id inside `placeLabels` would reintroduce exactly the
+  positional coupling this step exists to remove. `defaultLabelRequests` ended up taking
+  `(path: List<Pair<Double, Double>>, totalDistanceKm: Double)` — the already-margin-translated
+  canvas-space path plus the distance, not `(route, preset)` literally — so the margin-translation
+  math stays in one place (`buildWayprintLayout`) rather than duplicated; the 3 defaults get fixed
+  ids `"start"`/`"finish"`/`"distance"`. `feature:wayprint:ui`/`composeApp` are now broken
+  (`PlacedLabel`/`LabelRequest` construction sites there — `WayprintUiStateTest`,
+  `WayprintViewModel`'s `LabelPosition` round-trip — don't yet exist for the new shape); this
+  matches M9.1–M9.4's pattern of leaving other modules broken until the milestone's UI step
+  (M10.3) wires everything back together, not a regression to fix here.
 
 - [ ] **M10.2** — `core:storage`: replace `TrackMetadata.labelPositions: List<LabelPosition>` with
   a `List<SavedLabel>` (id, text, x, y, anchor-as-string) carrying full label identity, not just a
