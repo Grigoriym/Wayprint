@@ -1,7 +1,7 @@
 # Wayprint checklist
 
-**Current step:** M15 scoped and ready (add a Desktop/JVM KMP target — see below), starting at
-M15.1. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
+**Current step:** M15 in progress (add a Desktop/JVM KMP target — see below); M15.1 done, next is
+M15.2. M0–M14 (the full MVP roadmap, the second layout template, the edit-toolbar decluttering,
 and moving Android-only code out of `commonMain`) are complete and archived to
 `docs/CHECKLIST_ARCHIVE.md`. M15 is fully buildable/runnable/verifiable on this dev machine; M16
 adds iOS after M15 lands, but its verification is capped — this machine is Linux, so an iOS app
@@ -93,13 +93,18 @@ then flip the target switch last (M15.8)**, so every intermediate step keeps `./
 green on the one target that exists today — never leave the tree mid-migration with the new
 target half-wired and everything red, since each step still needs its own passing Verify line.
 
-- [ ] **M15.1** — `core:gpx`: replace `BigDecimal`/`RoundingMode` in `roundToOneDecimal`
+- [x] **M15.1** — `core:gpx`: replace `BigDecimal`/`RoundingMode` in `roundToOneDecimal`
   (`Projection.kt`) and `roundHalfEvenToInt` (`DayPalette.kt`) with a hand-written, portable
   `HALF_EVEN` rounding helper (no new dependency — this is arithmetic, not I/O).
   **Verify:** `./gradlew :core:gpx:testAndroidHostTest`, `detekt`, `ktlintCheck` pass — the
   existing golden-value tests (ported from the Python reference) must still pass bit-for-bit,
   proving the replacement rounds identically at the boundary cases `BigDecimal.HALF_EVEN` cares
   about (exact `.5` ties).
+  Note: added a shared internal `roundHalfEven(value, scale)` in a new `Rounding.kt` (multiply by
+  `10^scale`, round half-to-even, divide back — exact for every tie these inputs produce, since
+  IEEE 754 multiplication by a power of ten that stays within the mantissa is exact), used by both
+  call sites. Added `RoundingTest.kt` covering exact `.5` ties at scale 0 and 1 (e.g. `2.5`→`2`,
+  `1.25`→`1.2`), since none of the existing golden-value fixtures happened to land on an exact tie.
 
 - [ ] **M15.2** — `core:gpx`: replace `java.io.InputStream`/`java.io.StringReader` (`RouteArt.kt`,
   `GpxParser.kt`) with `kotlinx-io-core`'s `Source`/`Buffer` (add the dependency to

@@ -1,7 +1,5 @@
 package com.grappim.wayprint.core.gpx
 
-import java.math.BigDecimal
-import java.math.RoundingMode
 import kotlin.math.floor
 
 private val DEFAULT_HUES = listOf(33, 106, 186, 253, 322)
@@ -62,4 +60,4 @@ private fun hueToChannel(m1: Double, m2: Double, hue: Double): Double {
 }
 
 // Matches Python's round(x) (no ndigits), which rounds half-to-even to the nearest integer.
-private fun roundHalfEvenToInt(value: Double): Int = BigDecimal(value).setScale(0, RoundingMode.HALF_EVEN).toInt()
+private fun roundHalfEvenToInt(value: Double): Int = roundHalfEven(value, 0).toInt()

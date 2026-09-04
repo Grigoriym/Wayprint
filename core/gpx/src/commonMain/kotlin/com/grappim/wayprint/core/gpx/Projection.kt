@@ -1,7 +1,5 @@
 package com.grappim.wayprint.core.gpx
 
-import java.math.BigDecimal
-import java.math.RoundingMode
 import kotlin.math.PI
 import kotlin.math.cos
 
@@ -46,4 +44,4 @@ fun fitProjection(
 
 // Matches Python's round(x, 1), which rounds half-to-even on the decimal value nearest to x's
 // exact binary representation.
-private fun roundToOneDecimal(value: Double): Double = BigDecimal(value).setScale(1, RoundingMode.HALF_EVEN).toDouble()
+private fun roundToOneDecimal(value: Double): Double = roundHalfEven(value, 1)
