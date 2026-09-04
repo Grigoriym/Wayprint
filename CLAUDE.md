@@ -252,9 +252,3 @@ Read these rather than guessing; the conventions here are ported from them.
 
 **Trust their code over their docs.** Another project's `CLAUDE.md` can contradict its own
 implementation — both of these repos have had exactly that. Note a drift here when you find one.
-
-## Known IDE quirks
-
-- Android Studio may red-squiggle Android SDK classes in `commonMain` (e.g. `Uri`, `Paint`) while
-  `./gradlew build` is clean — false positive, this KMP setup is Android-only. Invalidate Caches
-  / Restart fixes it.
