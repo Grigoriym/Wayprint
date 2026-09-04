@@ -19,11 +19,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -123,8 +125,7 @@ fun WayprintScreen(
                                 onDragStart = viewModel::onLabelDragStart,
                                 onDrag = viewModel::onLabelDragged,
                                 onDragEnd = viewModel::onLabelDragEnd,
-                                onLabelTap = viewModel::onLabelSelected,
-                                onCanvasLongPress = { x, y -> pendingAddPosition = x to y }
+                                onLabelTap = viewModel::onLabelSelected
                             )
                             ColorSchemeSwatches(
                                 schemes = PRESET_COLOR_SCHEMES,
@@ -142,10 +143,15 @@ fun WayprintScreen(
                                 onDragStart = viewModel::onLabelDragStart,
                                 onDrag = viewModel::onLabelDragged,
                                 onDragEnd = viewModel::onLabelDragEnd,
-                                onLabelTap = viewModel::onLabelSelected,
-                                onCanvasLongPress = { x, y -> pendingAddPosition = x to y }
+                                onLabelTap = viewModel::onLabelSelected
                             )
                         }
+                    }
+                    FloatingActionButton(
+                        onClick = { pendingAddPosition = preset.canvasWidth / 2 to preset.canvasHeight / 2 },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(SCREEN_PADDING)
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = "Add label")
                     }
                     if (uiState.canUndo) {
                         Button(

@@ -51,11 +51,9 @@ private val MIN_LABEL_TOUCH_TARGET = 48.dp
  * inside the gesture rather than read back off [layout], since a caller applying [onDrag] live
  * would otherwise restart the gesture on every recomposition.
  *
- * A separate tap/long-press gesture (M10.3) hit-tests the same way: [onLabelTap] fires on every
- * tap with the hit label's id (`null` for empty canvas), [onCanvasLongPress] fires only for a
- * long-press that missed every label, with the press's canvas-space position — an actual drag
- * consumes the position change before this detector's touch-slop check, so the two gestures don't
- * fire for the same touch.
+ * A separate tap gesture (M10.3) hit-tests the same way: [onLabelTap] fires on every tap with the
+ * hit label's id (`null` for empty canvas) — an actual drag consumes the position change before
+ * this detector's touch-slop check, so the two gestures don't fire for the same touch.
  */
 @Composable
 fun WayprintCanvas(
@@ -66,15 +64,14 @@ fun WayprintCanvas(
     onDragStart: () -> Unit = {},
     onDrag: (index: Int, x: Double, y: Double) -> Unit = { _, _, _ -> },
     onDragEnd: () -> Unit = {},
-    onLabelTap: (id: String?) -> Unit = {},
-    onCanvasLongPress: (x: Double, y: Double) -> Unit = { _, _ -> }
+    onLabelTap: (id: String?) -> Unit = {}
 ) {
     val currentLayout by rememberUpdatedState(layout)
 
     Canvas(
         modifier = modifier
             .wayprintDragGestures(preset, { currentLayout.labels }, onDragStart, onDrag, onDragEnd)
-            .wayprintTapGestures(preset, { currentLayout.labels }, onLabelTap, onCanvasLongPress)
+            .wayprintTapGestures(preset, { currentLayout.labels }, onLabelTap)
     ) {
         val fit = fitScale(
             canvasWidth = preset.canvasWidth,
@@ -107,15 +104,14 @@ fun CombinedWayprintCanvas(
     onDragStart: () -> Unit = {},
     onDrag: (index: Int, x: Double, y: Double) -> Unit = { _, _, _ -> },
     onDragEnd: () -> Unit = {},
-    onLabelTap: (id: String?) -> Unit = {},
-    onCanvasLongPress: (x: Double, y: Double) -> Unit = { _, _ -> }
+    onLabelTap: (id: String?) -> Unit = {}
 ) {
     val currentLayout by rememberUpdatedState(layout)
 
     Canvas(
         modifier = modifier
             .wayprintDragGestures(preset, { currentLayout.labels }, onDragStart, onDrag, onDragEnd)
-            .wayprintTapGestures(preset, { currentLayout.labels }, onLabelTap, onCanvasLongPress)
+            .wayprintTapGestures(preset, { currentLayout.labels }, onLabelTap)
     ) {
         val fit = fitScale(
             canvasWidth = preset.canvasWidth,
@@ -185,15 +181,14 @@ private fun Modifier.wayprintDragGestures(
 }
 
 /**
- * The label tap/long-press gesture shared by [WayprintCanvas]/[CombinedWayprintCanvas] — see
- * [WayprintCanvas]'s doc for the tap-vs-drag/long-press-miss semantics.
+ * The label tap gesture shared by [WayprintCanvas]/[CombinedWayprintCanvas] — see [WayprintCanvas]'s
+ * doc for the tap-vs-drag semantics.
  */
 @Composable
 private fun Modifier.wayprintTapGestures(
     preset: StoryPreset,
     labels: () -> List<PlacedLabel>,
-    onLabelTap: (id: String?) -> Unit,
-    onCanvasLongPress: (x: Double, y: Double) -> Unit
+    onLabelTap: (id: String?) -> Unit
 ): Modifier = pointerInput(preset) {
     val minTouchTargetPx = MIN_LABEL_TOUCH_TARGET.toPx()
 
@@ -207,15 +202,6 @@ private fun Modifier.wayprintTapGestures(
             val minSize = minTouchTargetPx / fit.scale
             val index = hitTestLabelIndex(labels(), canvasX, canvasY, minSize)
             onLabelTap(labels().getOrNull(index)?.id)
-        },
-        onLongPress = { position ->
-            val fit = currentFit()
-            val canvasX = (position.x - fit.offsetX) / fit.scale
-            val canvasY = (position.y - fit.offsetY) / fit.scale
-            val minSize = minTouchTargetPx / fit.scale
-            if (hitTestLabelIndex(labels(), canvasX, canvasY, minSize) < 0) {
-                onCanvasLongPress(canvasX, canvasY)
-            }
         }
     )
 }
@@ -390,7 +376,7 @@ fun renderCombinedWayprintStoryBitmap(
 /**
  * The last (topmost-drawn) label in [labels] whose touch-friendly [labelTouchRect] contains
  * ([x], [y]) in canvas space, or -1 if none does. Shared by [WayprintCanvas]/[CombinedWayprintCanvas]'s
- * drag and tap/long-press gesture detectors so both hit-test the same way.
+ * drag and tap gesture detectors so both hit-test the same way.
  */
 private fun hitTestLabelIndex(labels: List<PlacedLabel>, x: Double, y: Double, minSize: Double): Int {
     val touchTestPaint = Paint().apply { textSize = LABEL_TEXT_SIZE }
