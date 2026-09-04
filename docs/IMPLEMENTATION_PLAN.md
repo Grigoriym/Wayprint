@@ -133,12 +133,21 @@ sections, expanded into milestones — see `docs/CHECKLIST.md` for the step-by-s
     `core:navigation` (deferred since M0 for exactly this trigger — the app's first second
     screen) and generalizes `core:storage`'s `DraftStorage` into a keyed `TracksStorage`. Third
     growth-roadmap/backlog item pulled into a milestone; supersedes M8's "Start over" action
-    (see `docs/CHECKLIST.md`'s M9 shared context).
+    (see `docs/CHECKLIST_ARCHIVE.md`'s M9 shared context).
+11. **M10** — freeform labels: generalizes the label model from a fixed regenerated set
+    (Start/Finish/distance) to an arbitrary, user-editable set — add/remove/place anywhere.
+    Prerequisite for M11, not itself scoped to multi-track. Fourth growth-roadmap/backlog item
+    pulled into a milestone, during the M11 investigation below.
+12. **M11** — combine multiple tracks: a new persisted entity backed by N existing tracks' GPX
+    bytes, sharing one projection, reusing M10's freeform labels (default global Start/Finish
+    only) — editable exactly like a single track. Fifth growth-roadmap/backlog item pulled into
+    a milestone.
 
-Remaining growth roadmap (not milestones yet, backlog only): more input sources (Health Connect,
-Strava OAuth, on-device recording — a distinct scope jump), multiple layout templates (poster,
-square, story — includes aspect-ratio picking, deferred out of M7), iOS/Desktop targets for
-`core:gpx` and the Compose `Canvas` renderer, combining multiple GPX tracks into one image.
+MVP roadmap (M0–M11) is complete as of M11.4. Remaining growth roadmap (not milestones yet,
+backlog only): more input sources (Health Connect, Strava OAuth, on-device recording — a
+distinct scope jump), multiple layout templates (poster, square, story — includes aspect-ratio
+picking, deferred out of M7), iOS/Desktop targets for `core:gpx` and the Compose `Canvas`
+renderer.
 
 ## 9. Open decisions / risks
 
@@ -154,7 +163,7 @@ square, story — includes aspect-ratio picking, deferred out of M7), iOS/Deskto
   false`-ing there so their DSL types are loadable before a convention plugin references them)
   and no `config/detekt/detekt.yml` / `config/compose/stability_config.conf` (copied from
   wallosmobile; detekt.yml trimmed of its `WallosMobile:` custom-rule section). See
-  `docs/CHECKLIST.md`'s M0.2 note for the full list.
+  `docs/CHECKLIST_ARCHIVE.md`'s M0.2 note for the full list.
 - ~~**Collision-avoidance algorithm**~~ — **Resolved at M3 step-break-down.** Greedy
   dodge-by-priority, not force-directed: each label gets a fixed anchor point (a route endpoint,
   or the route's bounding-box center for the distance label) plus an ordered list of candidate
@@ -185,7 +194,7 @@ square, story — includes aspect-ratio picking, deferred out of M7), iOS/Deskto
 - **M4 label/marker halo text — Android-only** — resolved at M4 step-break-down (2026-09-02).
   `feature:wayprint:ui` ports the Elbe reference's `paint-order: stroke` label legibility halo via
   `drawContext.canvas.nativeCanvas` + two `android.graphics.Paint`s (stroke, then fill) — see
-  `docs/CHECKLIST.md`'s M4 shared context. Unlike M1's `javax.xml.parsers`/`BigDecimal` calls
+  `docs/CHECKLIST_ARCHIVE.md`'s M4 shared context. Unlike M1's `javax.xml.parsers`/`BigDecimal` calls
   (JVM-standard, "Android-only" only because no other KMP target is configured yet),
   `android.graphics.Paint` is genuinely Android-only. Revisit when/if an iOS/Desktop target is
   added — a Compose Multiplatform-portable text-halo approach would replace this.
@@ -197,7 +206,7 @@ square, story — includes aspect-ratio picking, deferred out of M7), iOS/Deskto
 - **agentic-grappim README edit** (adding Wayprint to its project list) touches a shared repo
   used by other apps — confirm with the user at the M0 step that does this, not by default.
 - **M5 import/export decisions** — resolved at M5 step-break-down (2026-09-02). Four decisions,
-  see `docs/CHECKLIST.md`'s M5 shared context for the full reasoning:
+  see `docs/CHECKLIST_ARCHIVE.md`'s M5 shared context for the full reasoning:
   - GPX picker uses `ActivityResultContracts.GetContent("*/*")`, not SAF `OpenDocument` with a mime
     filter — GPX has no reliable, universally-tagged MIME type across Strava/Komoot/OsmAnd, so a
     mime filter would as often hide the real file as show it. A bad pick is validated by attempting
@@ -218,7 +227,7 @@ square, story — includes aspect-ratio picking, deferred out of M7), iOS/Deskto
     `wayprint.kmp.di` per §5) — `composeApp` stays a thin DI-root/shell hosting the finished screen.
     No repository/use-case layer: §4's lean-MVP module layout already ruled that structure out.
 - **M6 distribution scope** — resolved at M6 step-break-down (2026-09-02), see
-  `docs/CHECKLIST.md`'s M6 shared context for the full reasoning. Three user decisions:
+  `docs/CHECKLIST_ARCHIVE.md`'s M6 shared context for the full reasoning. Three user decisions:
   - M6.1 renames the ported wallosmobile-named signing config to Wayprint's own (`wayprint_*.jks`,
     `WAYPRINT_*` env vars) and fixes the *debug* F-Droid signing gap flagged since M0.2/M0.3, but
     does not generate real `gplay`/`fdroid` **release** keystores — those are the app's permanent
@@ -231,7 +240,7 @@ square, story — includes aspect-ratio picking, deferred out of M7), iOS/Deskto
     keystore or store listing to publish yet (see the first bullet above). Revisit as its own
     milestone when the app is ready to actually ship to a store.
 - **M7 editable-canvas scope** — resolved at M7 step-break-down (2026-09-02), see
-  `docs/CHECKLIST.md`'s M7 shared context for the full reasoning. Three user decisions:
+  `docs/CHECKLIST_ARCHIVE.md`'s M7 shared context for the full reasoning. Three user decisions:
   - Aspect-ratio picking stays out of M7 — it needs multiple canvas-shape presets, which is really
     the backlog's "multiple layout templates" item, not this one. M7 stays scoped to drag-to-
     reposition labels, picking a color scheme, and undo, all within the existing single
@@ -250,12 +259,12 @@ square, story — includes aspect-ratio picking, deferred out of M7), iOS/Deskto
     concrete need, and pulls in `wayprint.kmp.serialization` (deferred since M0, §5) for the
     stored draft's format.
 - **M8 start-over scope** — resolved at M8 step-break-down (2026-09-03), see
-  `docs/CHECKLIST.md`'s M8 shared context for the full reasoning. One user decision: starting over
+  `docs/CHECKLIST_ARCHIVE.md`'s M8 shared context for the full reasoning. One user decision: starting over
   confirms first (a dialog) rather than discarding the draft immediately on tap, since a draft
   clear has no undo. Stays within the existing single-draft model — saving the discarded draft
   somewhere (a recent-tracks list) is a separate, unscoped backlog item, not part of M8.
 - **M9 recent-tracks scope** — resolved at M9 step-break-down (2026-09-03), see
-  `docs/CHECKLIST.md`'s M9 shared context for the full reasoning. Four user decisions: every
+  `docs/CHECKLIST_ARCHIVE.md`'s M9 shared context for the full reasoning. Four user decisions: every
   import auto-saves (no explicit "Save" step); M8's confirm-then-clear "Start over" is replaced
   outright by plain back-navigation to the tracks list (no longer destructive, since the track is
   already saved); the list is uncapped, manual delete only (with its own confirm dialog, the
