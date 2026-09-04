@@ -211,6 +211,9 @@ At the end of each checklist step, without being asked:
 
 1. Run the **`/finalize` skill** if the step taught something non-obvious — the plan didn't
    know it going in, and this is where it gets written down instead of dying with the context.
+   This isn't limited to checklist steps — run it at the end of **any** non-trivial task
+   (a design discussion, a scoping session, an investigation) that surfaced something worth
+   keeping, not just numbered M-steps.
 2. Commit the step's changes (one commit per checklist step, per the working agreements above).
 3. **Push to `master` directly.** There is no dev branch and no PR workflow yet — the user has
    said explicitly, repeatedly, that push-to-master-every-task is the standing instruction until
