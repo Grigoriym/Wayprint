@@ -9,12 +9,16 @@ import com.grappim.wayprint.feature.wayprint.domain.movedTo
  * `isLoading`, no `layout`, no `error`). [layout] is [EditableWayprintLayout] (M11.4) so the same
  * state/edits work for a single or a combined track; [colorSchemeIndex] only applies to a
  * [EditableWayprintLayout.Single] — a combined track's per-track colors aren't user-selectable.
+ * [storyPresetIndex] (M12) is set once from the loaded track's persisted metadata and never
+ * changes afterward — the canvas template is locked in at creation time, so it isn't part of any
+ * [EditSnapshot]/undo stack the way [colorSchemeIndex] is.
  */
 data class WayprintUiState(
     val isLoading: Boolean = false,
     val layout: EditableWayprintLayout? = null,
     val error: String? = null,
     val colorSchemeIndex: Int = 0,
+    val storyPresetIndex: Int = 0,
     val undoStack: List<EditSnapshot> = emptyList(),
     val dragStartSnapshot: EditSnapshot? = null,
     val selectedLabelId: String? = null

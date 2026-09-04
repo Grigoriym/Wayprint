@@ -65,10 +65,11 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
                     runCatching {
                         val layout = ByteArrayInputStream(single.gpxBytes).use { buildWayprintLayout(it) }
                         val labels = single.metadata.labels.map { it.toPlacedLabel() }
-                        Triple(
-                            LoadedTrack.Single(single.gpxBytes, single.metadata),
-                            single.metadata.colorSchemeIndex,
-                            EditableWayprintLayout.Single(layout.copy(labels = labels))
+                        RestoredTrack(
+                            loaded = LoadedTrack.Single(single.gpxBytes, single.metadata),
+                            colorSchemeIndex = single.metadata.colorSchemeIndex,
+                            storyPresetIndex = single.metadata.storyPresetIndex,
+                            layout = EditableWayprintLayout.Single(layout.copy(labels = labels))
                         )
                     }.getOrNull()
                 } else {
@@ -76,10 +77,11 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
                     runCatching {
                         val layout = buildCombinedWayprintLayout(combined.gpxBlobs.map { ByteArrayInputStream(it) })
                         val labels = combined.metadata.labels.map { it.toPlacedLabel() }
-                        Triple(
-                            LoadedTrack.Combined(combined.gpxBlobs, combined.metadata),
-                            0,
-                            EditableWayprintLayout.Combined(layout.copy(labels = labels))
+                        RestoredTrack(
+                            loaded = LoadedTrack.Combined(combined.gpxBlobs, combined.metadata),
+                            colorSchemeIndex = 0,
+                            storyPresetIndex = combined.metadata.storyPresetIndex,
+                            layout = EditableWayprintLayout.Combined(layout.copy(labels = labels))
                         )
                     }.getOrNull()
                 }
@@ -88,9 +90,12 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
                 _uiState.value = WayprintUiState(error = "Couldn't load that track")
                 return@launch
             }
-            val (loaded, colorSchemeIndex, layout) = restored
-            loadedTrack = loaded
-            _uiState.value = WayprintUiState(layout = layout, colorSchemeIndex = colorSchemeIndex)
+            loadedTrack = restored.loaded
+            _uiState.value = WayprintUiState(
+                layout = restored.layout,
+                colorSchemeIndex = restored.colorSchemeIndex,
+                storyPresetIndex = restored.storyPresetIndex
+            )
         }
     }
 
@@ -187,3 +192,11 @@ private sealed interface LoadedTrack {
     data class Single(val gpxBytes: ByteArray, val metadata: TrackMetadata) : LoadedTrack
     data class Combined(val gpxBlobs: List<ByteArray>, val metadata: CombinedTrackMetadata) : LoadedTrack
 }
+
+/** What [WayprintViewModel.loadTrack] read back for one track, before it becomes [WayprintUiState]. */
+private data class RestoredTrack(
+    val loaded: LoadedTrack,
+    val colorSchemeIndex: Int,
+    val storyPresetIndex: Int,
+    val layout: EditableWayprintLayout
+)

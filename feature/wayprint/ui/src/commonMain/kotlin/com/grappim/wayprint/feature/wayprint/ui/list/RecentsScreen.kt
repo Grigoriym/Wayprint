@@ -56,9 +56,10 @@ fun RecentsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
+    var pendingTemplatePick by remember { mutableStateOf<TemplatePickTarget?>(null) }
 
     val pickGpx = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri != null) viewModel.importGpx(uri)
+        if (uri != null) pendingTemplatePick = TemplatePickTarget.Import(uri)
     }
 
     LaunchedEffect(Unit) {
@@ -67,9 +68,23 @@ fun RecentsScreen(
 
     LaunchedEffect(pendingImportUri) {
         if (pendingImportUri != null) {
-            viewModel.importGpx(pendingImportUri)
+            pendingTemplatePick = TemplatePickTarget.Import(pendingImportUri)
             clearPendingImport()
         }
+    }
+
+    val templatePick = pendingTemplatePick
+    if (templatePick != null) {
+        TemplatePickDialog(
+            onSelect = { storyPresetIndex ->
+                when (templatePick) {
+                    is TemplatePickTarget.Import -> viewModel.importGpx(templatePick.uri, storyPresetIndex)
+                    is TemplatePickTarget.Combine -> viewModel.combineSelected(storyPresetIndex)
+                }
+                pendingTemplatePick = null
+            },
+            onDismiss = { pendingTemplatePick = null }
+        )
     }
 
     val deleteId = pendingDeleteId
@@ -107,7 +122,7 @@ fun RecentsScreen(
                     },
                     actions = {
                         IconButton(
-                            onClick = viewModel::combineSelected,
+                            onClick = { pendingTemplatePick = TemplatePickTarget.Combine },
                             enabled = uiState.selectedIds.size >= 2
                         ) {
                             Icon(Icons.Filled.Check, contentDescription = "Combine")
@@ -164,6 +179,40 @@ fun RecentsScreen(
             }
         }
     }
+}
+
+/**
+ * What a [TemplatePickDialog] choice is for — a fresh [Import] (share-intent or file-picker
+ * `Uri`) or a [Combine] of the current selection. The picked `storyPresetIndex` (M12) is threaded
+ * into [RecentsViewModel.importGpx]/[RecentsViewModel.combineSelected] once the user answers.
+ */
+private sealed interface TemplatePickTarget {
+    data class Import(val uri: Uri) : TemplatePickTarget
+    data object Combine : TemplatePickTarget
+}
+
+/** Locks in the new track's canvas template (M12) — story or square — before it's ever saved. */
+@Composable
+private fun TemplatePickDialog(
+    onSelect: (storyPresetIndex: Int) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AlertDialog(
+        modifier = modifier,
+        onDismissRequest = onDismiss,
+        title = { Text("Choose a canvas shape") },
+        text = {
+            Column {
+                TextButton(onClick = { onSelect(0) }) { Text("Story") }
+                TextButton(onClick = { onSelect(1) }) { Text("Square") }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 /** [isSelected]/checkbox only shows for a [RecentTrackUiItem.isCombinable] row — combining a combined track isn't supported (M11.4). */

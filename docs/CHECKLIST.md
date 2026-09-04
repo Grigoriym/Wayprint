@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M12.2 done, next up is M12.3. M0–M11 (the full MVP roadmap) are complete —
+**Current step:** M12.3 done, next up is M12.4. M0–M11 (the full MVP roadmap) are complete —
 moved to `docs/CHECKLIST_ARCHIVE.md`. Release CI/publish was explicitly deferred by the user
 (keystores ready since M6.3) — pick that back up only when they say the app is ready to ship.
 
@@ -115,13 +115,26 @@ Shared context:
   type, writing raw pre-M12.2 `metadata.json` content directly) confirming both `load` and
   `loadCombined` default to 0 when the key is absent.
 
-- [ ] **M12.3** — `feature:wayprint:ui`: a template-pick step (new `AlertDialog`, matching this
+- [x] **M12.3** — `feature:wayprint:ui`: a template-pick step (new `AlertDialog`, matching this
   app's existing dialog precedent — see shared context) inserted into `RecentsViewModel.importGpx`
   and `combineSelected()`'s call sites in `RecentsScreen.kt`, shown once before `save`/
   `saveCombined` fires, its chosen index threaded into the new `TrackMetadata`/
   `CombinedTrackMetadata` field from M12.2. `WayprintViewModel.loadTrack()` reads it back for both
   `Single` and `Combined` (no more hardcoded `0` for `Combined`).
   **Verify:** `./gradlew :feature:wayprint:ui:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
+  Note: added `RecentsScreen`'s `TemplatePickDialog` (two `TextButton`s, "Story"/"Square", picking
+  index 0/1) shown via a new `TemplatePickTarget` (`Import(uri)`/`Combine`) state, gating both the
+  file-picker result and the share-intent `pendingImportUri` effect, and the combine check-icon
+  click — each now stages a target instead of calling the view model directly, and the dialog's
+  `onSelect` fires the real `importGpx`/`combineSelected` call with the chosen index.
+  `importGpx`/`combineSelected` gained a `storyPresetIndex: Int` parameter threaded straight into
+  the M12.2 metadata field. `WayprintViewModel.loadTrack()`'s `Triple` became a named
+  `RestoredTrack(loaded, colorSchemeIndex, storyPresetIndex, layout)` so both `Single` and
+  `Combined` branches read `metadata.storyPresetIndex` back into a new
+  `WayprintUiState.storyPresetIndex` field (plain, not part of the undo `EditSnapshot` — the
+  template is locked at creation and never edited, per M12's design). Full `./gradlew build`
+  (all modules, not just `feature:wayprint:ui`) also passes. M12.4 is what actually makes
+  `storyPresetIndex` affect rendering — this step only plumbs it through storage/state.
 
 - [ ] **M12.4** — `feature:wayprint:ui`: `WayprintScreen`'s render/export call sites
   (`WayprintCanvas`/`CombinedWayprintCanvas`, `renderWayprintStoryBitmap`/

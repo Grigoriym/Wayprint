@@ -54,8 +54,8 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    /** Parses [uri], saves it as a new track, and emits the new id via [imported] for the caller to navigate on. */
-    fun importGpx(uri: Uri) {
+    /** Parses [uri], saves it as a new track under [storyPresetIndex], and emits the new id via [imported] for the caller to navigate on. */
+    fun importGpx(uri: Uri, storyPresetIndex: Int) {
         _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
@@ -72,7 +72,8 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
                             colorSchemeIndex = 0,
                             displayName = resolveDisplayName(uri),
                             importedAtEpochMillis = System.currentTimeMillis(),
-                            distanceKm = layout.totalDistanceKm
+                            distanceKm = layout.totalDistanceKm,
+                            storyPresetIndex = storyPresetIndex
                         )
                     )
                     id to tracksStorage.list().map { it.toUiItem() }
@@ -117,11 +118,11 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
     }
 
     /**
-     * Builds a new combined track (M11) from the currently selected tracks' GPX bytes, in
-     * selection order, and emits its id via [imported] like a fresh import. A no-op below 2
-     * selected tracks — nothing to combine.
+     * Builds a new combined track (M11) under [storyPresetIndex] from the currently selected
+     * tracks' GPX bytes, in selection order, and emits its id via [imported] like a fresh import.
+     * A no-op below 2 selected tracks — nothing to combine.
      */
-    fun combineSelected() {
+    fun combineSelected(storyPresetIndex: Int) {
         val ids = _uiState.value.selectedIds
         if (ids.size < 2) return
         _uiState.update { it.copy(isLoading = true, error = null) }
@@ -139,7 +140,8 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
                             labels = layout.labels.map { it.toSavedLabel() },
                             displayName = tracks.joinToString(" + ") { it.metadata.displayName },
                             importedAtEpochMillis = System.currentTimeMillis(),
-                            distanceKm = layout.totalDistanceKm
+                            distanceKm = layout.totalDistanceKm,
+                            storyPresetIndex = storyPresetIndex
                         )
                     )
                     id to tracksStorage.list().map { it.toUiItem() }
