@@ -1,5 +1,6 @@
 package com.grappim.wayprint.feature.wayprint.ui.edit
 
+import com.grappim.wayprint.feature.wayprint.domain.PlacedLabel
 import com.grappim.wayprint.feature.wayprint.domain.WayprintLayout
 import com.grappim.wayprint.feature.wayprint.domain.movedTo
 
@@ -14,7 +15,8 @@ data class WayprintUiState(
     val error: String? = null,
     val colorSchemeIndex: Int = 0,
     val undoStack: List<EditSnapshot> = emptyList(),
-    val dragStartSnapshot: EditSnapshot? = null
+    val dragStartSnapshot: EditSnapshot? = null,
+    val selectedLabelId: String? = null
 ) {
     val canUndo: Boolean get() = undoStack.isNotEmpty()
 }
@@ -56,3 +58,29 @@ fun WayprintUiState.undone(): WayprintUiState {
         undoStack = undoStack.dropLast(1)
     )
 }
+
+/** Adds [label] to the layout (M10.3), pushing the pre-add snapshot onto the undo stack. */
+fun WayprintUiState.labelAdded(label: PlacedLabel): WayprintUiState {
+    val current = layout ?: return this
+    return copy(
+        undoStack = undoStack + EditSnapshot(current, colorSchemeIndex),
+        layout = current.copy(labels = current.labels + label)
+    )
+}
+
+/**
+ * Removes the label with [id] from the layout (M10.3), pushing the pre-remove snapshot onto the
+ * undo stack and clearing the selection. A no-op if [id] isn't present.
+ */
+fun WayprintUiState.labelRemoved(id: String): WayprintUiState {
+    val current = layout ?: return this
+    if (current.labels.none { it.id == id }) return this
+    return copy(
+        undoStack = undoStack + EditSnapshot(current, colorSchemeIndex),
+        layout = current.copy(labels = current.labels.filterNot { it.id == id }),
+        selectedLabelId = null
+    )
+}
+
+/** Selects (or, with `null`, deselects) the label with [id] — not itself an undoable edit. */
+fun WayprintUiState.labelSelected(id: String?): WayprintUiState = copy(selectedLabelId = id)

@@ -107,4 +107,24 @@ class LabelPlacementTest {
         assertEquals(expectedWidth, moved.boundingBox.maxX - moved.boundingBox.minX)
         assertEquals(expectedHeight, moved.boundingBox.maxY - moved.boundingBox.minY)
     }
+
+    @Test
+    fun `placeNewLabel builds a label at the given position with no candidate search`() {
+        val label = placeNewLabel(id = "custom-1", text = "Camp", x = 250.0, y = 150.0)
+
+        assertEquals("custom-1", label.id)
+        assertEquals("Camp", label.text)
+        assertEquals(250.0, label.x)
+        assertEquals(150.0, label.y)
+        assertEquals(TextAnchor.MIDDLE, label.anchor)
+        assertFalse(label.boundingBox.minX == label.boundingBox.maxX)
+    }
+
+    @Test
+    fun `placeNewLabel honors an explicit anchor`() {
+        val label = placeNewLabel(id = "custom-2", text = "Camp", x = 250.0, y = 150.0, anchor = TextAnchor.START)
+
+        assertEquals(TextAnchor.START, label.anchor)
+        assertEquals(250.0, label.boundingBox.minX)
+    }
 }

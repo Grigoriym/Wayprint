@@ -1,6 +1,6 @@
 # Wayprint checklist
 
-**Current step:** M10.1 done
+**Current step:** M10.3 done
 
 ## How to use this
 
@@ -1470,7 +1470,7 @@ Shared context:
   none is needed.
   **Verify:** `./gradlew :core:storage:testAndroidHostTest`, `detekt`, `ktlintCheck` pass.
 
-- [ ] **M10.3** — `feature:wayprint:ui`: `WayprintViewModel` gains `addLabel(x, y)` (creates a new
+- [x] **M10.3** — `feature:wayprint:ui`: `WayprintViewModel` gains `addLabel(x, y)` (creates a new
   label with placeholder/editable text at that point — decide the actual text-entry UX at this
   step: inline edit-on-tap vs. a dialog, following whichever's closer to `../wallosmobile`'s
   existing text-entry precedent) and `removeLabel(id)`, both pushing an `EditSnapshot` onto the
@@ -1482,6 +1482,21 @@ Shared context:
   Emulator check (`emulator-testing` skill): add a label, drag it, force-stop and relaunch — it's
   still there at the dragged position; remove a label, relaunch — it's gone; undo restores a
   just-removed label.
+
+  **Note:** Text-entry UX (M10.3's own open decision) settled on an `AlertDialog` +
+  `OutlinedTextField` — `../wallosmobile` has no inline-edit-on-tap precedent anywhere, but does
+  use exactly this dialog shape elsewhere (its delete-confirm dialogs, `CategoryEditorScreen`'s
+  `OutlinedTextField`). Add affordance is long-press-canvas (guarded so a long-press that actually
+  hit an existing label doesn't also open the add dialog); remove is tap-to-select (a new
+  `WayprintUiState.selectedLabelId`, transient/not persisted) plus a "Delete label" button. Both
+  gestures share drag's existing `labelTouchRect` touch-friendly hit-test rather than the tiny
+  placement-estimate `boundingBox`, so no drag-style tap-precision issues came up in the emulator
+  check. Default labels are now seeded into `TrackMetadata.labels` at *import* time
+  (`RecentsViewModel`), not synthesized as a load-time fallback — matches M9's "every import saves
+  immediately" precedent, resolving the M10 shared context's open question. One unrelated gotcha
+  hit during the emulator check, not a regression: an emulator with a track imported before
+  M10.2's storage-format change crashes on relaunch until `pm clear` — see
+  `docs/EMULATOR_TESTING.md`.
 
 ## M11 — combine multiple tracks
 

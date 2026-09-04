@@ -7,11 +7,12 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.grappim.wayprint.core.storage.LabelPosition
 import com.grappim.wayprint.core.storage.TrackMetadata
 import com.grappim.wayprint.core.storage.TracksStorage
 import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
-import com.grappim.wayprint.feature.wayprint.domain.movedTo
+import com.grappim.wayprint.feature.wayprint.domain.placeNewLabel
+import com.grappim.wayprint.feature.wayprint.ui.toPlacedLabel
+import com.grappim.wayprint.feature.wayprint.ui.toSavedLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,11 +57,7 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
                 val track = tracksStorage.load(trackId) ?: return@withContext null
                 runCatching {
                     val layout = ByteArrayInputStream(track.gpxBytes).use { buildWayprintLayout(it) }
-                    val labels = layout.labels.mapIndexed { index, label ->
-                        track.metadata.labelPositions.getOrNull(index)
-                            ?.let { label.movedTo(it.x, it.y) }
-                            ?: label
-                    }
+                    val labels = track.metadata.labels.map { it.toPlacedLabel() }
                     Triple(
                         track.gpxBytes,
                         track.metadata,
@@ -105,6 +102,24 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
         persistTrack()
     }
 
+    /** Adds a new freeform label (M10.3) at ([x], [y]) with [text], undoable like drag/color-scheme edits. */
+    fun addLabel(x: Double, y: Double, text: String) {
+        val id = System.currentTimeMillis().toString()
+        _uiState.update { it.labelAdded(placeNewLabel(id = id, text = text, x = x, y = y)) }
+        persistTrack()
+    }
+
+    /** Removes the freeform label [id] (M10.3), undoable like drag/color-scheme edits. */
+    fun removeLabel(id: String) {
+        _uiState.update { it.labelRemoved(id) }
+        persistTrack()
+    }
+
+    /** Selects (or, with `null`, deselects) the label [id] for the delete affordance (M10.3). */
+    fun onLabelSelected(id: String?) {
+        _uiState.update { it.labelSelected(id) }
+    }
+
     /** Saves the current layout/scheme back under [trackId], so a later force-kill can restore this exact state. */
     private fun persistTrack() {
         val bytes = trackGpxBytes ?: return
@@ -115,7 +130,7 @@ class WayprintViewModel(@InjectedParam private val trackId: String, private val 
                 trackId,
                 bytes,
                 metadata.copy(
-                    labelPositions = layout.labels.map { LabelPosition(it.x, it.y) },
+                    labels = layout.labels.map { it.toSavedLabel() },
                     colorSchemeIndex = _uiState.value.colorSchemeIndex
                 )
             )

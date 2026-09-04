@@ -19,14 +19,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,6 +70,7 @@ fun WayprintScreen(
     val context = LocalContext.current
 
     var pendingExportBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var pendingAddPosition by remember { mutableStateOf<Pair<Double, Double>?>(null) }
     val requestExportPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -114,7 +118,9 @@ fun WayprintScreen(
                         modifier = Modifier.fillMaxSize(),
                         onDragStart = viewModel::onLabelDragStart,
                         onDrag = viewModel::onLabelDragged,
-                        onDragEnd = viewModel::onLabelDragEnd
+                        onDragEnd = viewModel::onLabelDragEnd,
+                        onLabelTap = viewModel::onLabelSelected,
+                        onCanvasLongPress = { x, y -> pendingAddPosition = x to y }
                     )
                     if (uiState.canUndo) {
                         Button(
@@ -122,6 +128,14 @@ fun WayprintScreen(
                             modifier = Modifier.align(Alignment.TopStart).padding(SCREEN_PADDING)
                         ) {
                             Text("Undo")
+                        }
+                    }
+                    uiState.selectedLabelId?.let { selectedLabelId ->
+                        Button(
+                            onClick = { viewModel.removeLabel(selectedLabelId) },
+                            modifier = Modifier.align(Alignment.BottomStart).padding(SCREEN_PADDING)
+                        ) {
+                            Text("Delete label")
                         }
                     }
                     ColorSchemeSwatches(
@@ -155,10 +169,41 @@ fun WayprintScreen(
                     ) {
                         Text("Export")
                     }
+                    pendingAddPosition?.let { (x, y) ->
+                        AddLabelDialog(
+                            onConfirm = { text ->
+                                viewModel.addLabel(x, y, text)
+                                pendingAddPosition = null
+                            },
+                            onDismiss = { pendingAddPosition = null }
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+/** Prompts for a new freeform label's text (M10.3), confirming via [onConfirm] once it's non-blank. */
+@Composable
+private fun AddLabelDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    var text by remember { mutableStateOf("") }
+    AlertDialog(
+        modifier = modifier,
+        onDismissRequest = onDismiss,
+        title = { Text("Add label") },
+        text = { OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true) },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text) }, enabled = text.isNotBlank()) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 /** A row of tappable circular swatches, one per [schemes] entry, colored by its [ColorScheme.lineColor]. */

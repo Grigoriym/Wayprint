@@ -13,6 +13,7 @@ import kotlin.test.assertTrue
 class WayprintUiStateTest {
 
     private val label = PlacedLabel(
+        id = "start",
         text = "Start",
         x = 100.0,
         y = 100.0,
@@ -90,5 +91,63 @@ class WayprintUiStateTest {
 
         assertEquals(0, state.colorSchemeIndex)
         assertFalse(state.canUndo)
+    }
+
+    @Test
+    fun `labelAdded appends the new label and pushes the pre-add snapshot`() {
+        val newLabel = label.copy(id = "new", text = "Camp", x = 50.0, y = 50.0)
+
+        val state = WayprintUiState(layout = layout).labelAdded(newLabel)
+
+        assertEquals(listOf(label, newLabel), state.layout?.labels)
+        assertEquals(listOf(EditSnapshot(layout, colorSchemeIndex = 0)), state.undoStack)
+    }
+
+    @Test
+    fun `undone after an add removes the just-added label`() {
+        val newLabel = label.copy(id = "new", text = "Camp", x = 50.0, y = 50.0)
+        val added = WayprintUiState(layout = layout).labelAdded(newLabel)
+
+        val state = added.undone()
+
+        assertEquals(layout, state.layout)
+        assertFalse(state.canUndo)
+    }
+
+    @Test
+    fun `labelRemoved drops the label, pushes the pre-remove snapshot, and clears selection`() {
+        val state = WayprintUiState(layout = layout, selectedLabelId = "start").labelRemoved("start")
+
+        assertEquals(emptyList(), state.layout?.labels)
+        assertEquals(listOf(EditSnapshot(layout, colorSchemeIndex = 0)), state.undoStack)
+        assertNull(state.selectedLabelId)
+    }
+
+    @Test
+    fun `labelRemoved with an unknown id is a no-op`() {
+        val state = WayprintUiState(layout = layout).labelRemoved("missing")
+
+        assertEquals(layout, state.layout)
+        assertFalse(state.canUndo)
+    }
+
+    @Test
+    fun `undone after a remove restores the just-removed label`() {
+        val removed = WayprintUiState(layout = layout).labelRemoved("start")
+
+        val state = removed.undone()
+
+        assertEquals(layout, state.layout)
+        assertFalse(state.canUndo)
+    }
+
+    @Test
+    fun `labelSelected sets and clears the selection without touching undo`() {
+        val selected = WayprintUiState(layout = layout).labelSelected("start")
+        assertEquals("start", selected.selectedLabelId)
+        assertFalse(selected.canUndo)
+
+        val cleared = selected.labelSelected(null)
+        assertNull(cleared.selectedLabelId)
     }
 }

@@ -9,6 +9,7 @@ import com.grappim.wayprint.core.storage.TrackMetadata
 import com.grappim.wayprint.core.storage.TrackSummary
 import com.grappim.wayprint.core.storage.TracksStorage
 import com.grappim.wayprint.feature.wayprint.domain.buildWayprintLayout
+import com.grappim.wayprint.feature.wayprint.ui.toSavedLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,7 +66,7 @@ class RecentsViewModel(private val context: Context) : ViewModel() {
                         id,
                         gpxBytes,
                         TrackMetadata(
-                            labelPositions = emptyList(),
+                            labels = layout.labels.map { it.toSavedLabel() },
                             colorSchemeIndex = 0,
                             displayName = resolveDisplayName(uri),
                             importedAtEpochMillis = System.currentTimeMillis(),

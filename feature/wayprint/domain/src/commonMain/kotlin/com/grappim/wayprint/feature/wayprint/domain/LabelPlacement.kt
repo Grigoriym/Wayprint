@@ -87,3 +87,20 @@ fun PlacedLabel.movedTo(x: Double, y: Double): PlacedLabel {
     val (width, height) = estimatedSize(text)
     return copy(x = x, y = y, boundingBox = boundingBox(x, y, anchor, width, height))
 }
+
+/**
+ * Builds a freestanding [PlacedLabel] at ([x], [y]) with no collision-avoidance candidates
+ * (M10.3's user-added labels, unlike [defaultLabelRequests]' pipeline through [placeLabels]) —
+ * its bounding box is still computed the normal way, from [text]/[anchor].
+ */
+fun placeNewLabel(id: String, text: String, x: Double, y: Double, anchor: TextAnchor = TextAnchor.MIDDLE): PlacedLabel {
+    val (width, height) = estimatedSize(text)
+    return PlacedLabel(
+        id = id,
+        text = text,
+        x = x,
+        y = y,
+        anchor = anchor,
+        boundingBox = boundingBox(x, y, anchor, width, height)
+    )
+}

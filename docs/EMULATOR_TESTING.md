@@ -48,3 +48,10 @@ technique lives in the skill itself, not here — this file is only what's true 
   drive the real SAF picker (tap the FAB, it opens straight into Downloads on this AVD, tap the
   file) to get a real `content://` grant — this is also the more faithful test of M9's "Import
   GPX" flow anyway. (M9.5, 2026-09-04.)
+- A milestone that makes a breaking `TrackMetadata`/storage format change (no migration, per
+  root `CLAUDE.md`'s Settled Decisions table) will crash on launch against a track imported in an
+  *older* emulator session still on disk: `kotlinx.serialization.json.JsonDecodingException:
+  ... Encountered an unknown key '<old-field-name>'`. This is stale on-device data, not a
+  regression in the new code — `adb shell pm clear <package-id>` before the first emulator run
+  against such a change, rather than debugging the deserializer. (M10.3, 2026-09-04, hit against
+  M10.2's `labelPositions` → `labels` rename.)
