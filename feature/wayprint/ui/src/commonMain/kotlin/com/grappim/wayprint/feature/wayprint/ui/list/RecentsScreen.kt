@@ -203,8 +203,18 @@ private fun TemplatePickDialog(
         title = { Text("Choose a canvas shape") },
         text = {
             Column {
-                TextButton(onClick = { onSelect(0) }) { Text("Story") }
-                TextButton(onClick = { onSelect(1) }) { Text("Square") }
+                TextButton(onClick = { onSelect(0) }) {
+                    Column {
+                        Text("Story")
+                        Text("1080×1920, portrait — matches Instagram/social media story format")
+                    }
+                }
+                TextButton(onClick = { onSelect(1) }) {
+                    Column {
+                        Text("Square")
+                        Text("1080×1080 — matches a square social media post")
+                    }
+                }
             }
         },
         confirmButton = {},
