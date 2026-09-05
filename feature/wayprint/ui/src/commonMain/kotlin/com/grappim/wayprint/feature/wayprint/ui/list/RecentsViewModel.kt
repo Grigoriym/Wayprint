@@ -141,7 +141,8 @@ class RecentsViewModel(private val tracksStorage: TracksStorage) : ViewModel() {
                             displayName = tracks.joinToString(" + ") { it.metadata.displayName },
                             importedAtEpochMillis = Clock.System.now().toEpochMilliseconds(),
                             distanceKm = layout.totalDistanceKm,
-                            storyPresetIndex = storyPresetIndex
+                            storyPresetIndex = storyPresetIndex,
+                            trackNames = tracks.map { it.metadata.displayName }
                         )
                     )
                     id to tracksStorage.list().map { it.toUiItem() }
@@ -163,7 +164,8 @@ class RecentsViewModel(private val tracksStorage: TracksStorage) : ViewModel() {
         displayName = displayName,
         importedDate = formatImportedDate(importedAtEpochMillis),
         distanceLabel = formatDistanceKm(distanceKm),
-        isCombinable = this is TrackListEntry.Single
+        isCombinable = this is TrackListEntry.Single,
+        mergedTrackNames = if (this is TrackListEntry.Combined) metadata.trackNames else emptyList()
     )
 }
 

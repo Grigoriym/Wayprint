@@ -43,13 +43,15 @@ class TracksStorageTest {
         displayName: String = "Combined track",
         importedAtEpochMillis: Long = 0L,
         distanceKm: Double = 0.0,
-        storyPresetIndex: Int = 0
+        storyPresetIndex: Int = 0,
+        trackNames: List<String> = displayName.split(" + ")
     ) = CombinedTrackMetadata(
         labels = labels(),
         displayName = displayName,
         importedAtEpochMillis = importedAtEpochMillis,
         distanceKm = distanceKm,
-        storyPresetIndex = storyPresetIndex
+        storyPresetIndex = storyPresetIndex,
+        trackNames = trackNames
     )
 
     private fun writeFile(path: Path, text: String) {
@@ -76,7 +78,11 @@ class TracksStorageTest {
     @Test
     fun `saveCombined then loadCombined round-trips every gpx blob in order and metadata exactly`() {
         val gpxBlobs = listOf("<gpx><trk>a</trk></gpx>".toByteArray(), "<gpx><trk>b</trk></gpx>".toByteArray())
-        val trackMetadata = combinedMetadata(displayName = "Two days", distanceKm = 30.0)
+        val trackMetadata = combinedMetadata(
+            displayName = "Two days",
+            distanceKm = 30.0,
+            trackNames = listOf("morning.gpx", "evening.gpx")
+        )
 
         storage.saveCombined("combined-1", gpxBlobs, trackMetadata)
         val restored = requireNotNull(storage.loadCombined("combined-1"))
@@ -173,5 +179,19 @@ class TracksStorageTest {
         val restored = requireNotNull(storage.loadCombined("legacy-combined"))
 
         assertEquals(0, restored.metadata.storyPresetIndex)
+    }
+
+    @Test
+    fun `loadCombined defaults trackNames to displayName split on the join separator when that field is absent`() {
+        val trackDirectory = Path(directory, "legacy-combined-names").also { SystemFileSystem.createDirectories(it) }
+        writeFile(Path(trackDirectory, "track-0.gpx"), "<gpx/>")
+        writeFile(
+            Path(trackDirectory, "metadata.json"),
+            """{"labels":[],"displayName":"morning.gpx + evening.gpx","importedAtEpochMillis":0,"distanceKm":0.0}"""
+        )
+
+        val restored = requireNotNull(storage.loadCombined("legacy-combined-names"))
+
+        assertEquals(listOf("morning.gpx", "evening.gpx"), restored.metadata.trackNames)
     }
 }

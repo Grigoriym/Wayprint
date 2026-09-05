@@ -30,6 +30,12 @@ data class TrackMetadata(
  * [TrackMetadata.colorSchemeIndex]: a combined image's per-track line colors come from
  * `dayPalette(n)` at layout-build time (one hue per track), not a user-selected scheme.
  * [storyPresetIndex] defaults to `0` for the same pre-existing-metadata reason as [TrackMetadata].
+ * [trackNames] is each constituent track's own [TrackMetadata.displayName], for showing them
+ * individually in the Recents list rather than only as the one joined [displayName] string.
+ * Metadata persisted before this field existed has no separate record of the individual names, so
+ * its default splits [displayName] back apart on `combineSelected`'s `" + "` join separator —
+ * lossy only if an original name itself contained that substring, the same edge case the join
+ * already had.
  */
 @Serializable
 data class CombinedTrackMetadata(
@@ -37,7 +43,8 @@ data class CombinedTrackMetadata(
     val displayName: String,
     val importedAtEpochMillis: Long,
     val distanceKm: Double,
-    val storyPresetIndex: Int = 0
+    val storyPresetIndex: Int = 0,
+    val trackNames: List<String> = displayName.split(" + ")
 )
 
 /** One row for [TracksStorage.list] — either kind of track, cheap to list, no GPX bytes. */

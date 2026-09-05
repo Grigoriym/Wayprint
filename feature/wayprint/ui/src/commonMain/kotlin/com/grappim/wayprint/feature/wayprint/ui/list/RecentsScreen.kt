@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.grappim.wayprint.feature.wayprint.ui.platform.PlatformFileHandle
 import com.grappim.wayprint.feature.wayprint.ui.platform.rememberGpxPickerLauncher
@@ -213,7 +214,14 @@ private fun TemplatePickDialog(
     )
 }
 
-/** [isSelected]/checkbox only shows for a [RecentTrackUiItem.isCombinable] row — combining a combined track isn't supported (M11.4). */
+/**
+ * [isSelected]/checkbox only shows for a [RecentTrackUiItem.isCombinable] row — combining a
+ * combined track isn't supported (M11.4). The leading content is weighted and every [Text] here
+ * is capped to one line: a combined track's [RecentTrackUiItem.displayName] is every constituent
+ * name joined with no length limit (`RecentsViewModel.combineSelected`), which otherwise pushes
+ * the trailing delete [IconButton] outside the row's visible bounds — a `Row` doesn't shrink an
+ * unweighted, unbounded-width child to make room for a sibling.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RecentTrackRow(
@@ -232,13 +240,16 @@ private fun RecentTrackRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
             if (isSelectionMode && item.isCombinable) {
                 Checkbox(checked = isSelected, onCheckedChange = { onClick() })
             }
             Column {
-                Text(item.displayName)
-                Text("${item.importedDate} · ${item.distanceLabel}")
+                Text(item.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                item.mergedTrackNames.forEach { name ->
+                    Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Text("${item.importedDate} · ${item.distanceLabel}", maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         if (!isSelectionMode) {
