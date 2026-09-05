@@ -1,6 +1,7 @@
 package com.grappim.wayprint.feature.wayprint.ui.list
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -203,17 +204,23 @@ private fun TemplatePickDialog(
         title = { Text("Choose a canvas shape") },
         text = {
             Column {
-                TextButton(onClick = { onSelect(0) }) {
-                    Column {
-                        Text("Story")
-                        Text("1080×1920, portrait — matches Instagram/social media story format")
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(0) }
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text("Story")
+                    Text("1080×1920, portrait — matches Instagram/social media story format")
                 }
-                TextButton(onClick = { onSelect(1) }) {
-                    Column {
-                        Text("Square")
-                        Text("1080×1080 — matches a square social media post")
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(1) }
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text("Square")
+                    Text("1080×1080 — matches a square social media post")
                 }
             }
         },
