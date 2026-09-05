@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 class SavedLabelMappingTest {
 
     @Test
-    fun `toSavedLabel carries id, text, position and anchor name`() {
+    fun `toSavedLabel carries id text position and anchor name`() {
         val label = placeNewLabel(id = "custom-1", text = "Camp", x = 250.0, y = 150.0, anchor = TextAnchor.END)
 
         val saved = label.toSavedLabel()

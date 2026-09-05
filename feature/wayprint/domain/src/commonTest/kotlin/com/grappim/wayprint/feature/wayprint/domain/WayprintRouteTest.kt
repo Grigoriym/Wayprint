@@ -1,21 +1,14 @@
 package com.grappim.wayprint.feature.wayprint.domain
 
-import kotlinx.io.asSource
-import kotlinx.io.buffered
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-
-private fun fixtureStream() =
-    requireNotNull(object {}.javaClass.getResourceAsStream("/fixtures/04 Riesa - Meissen.gpx"))
 
 class WayprintRouteTest {
 
     @Test
     fun `total distance on the fixture matches the Python reference's sum of haversine_km over raw points`() {
-        val fixture = fixtureStream()
-
-        val route = fixture.use { buildWayprintRoute(it.asSource().buffered()) }
+        val route = buildWayprintRoute(riesaMeissenFixtureSource())
 
         // Captured by running parse_track() then summing haversine_km() over consecutive raw
         // points from gpx_route_art.py on the same fixture file.
@@ -24,8 +17,9 @@ class WayprintRouteTest {
 
     @Test
     fun `combined route sums per-track distance and assigns one dayPalette color per track`() {
-        val route = listOf(fixtureStream(), fixtureStream())
-            .use { streams -> buildCombinedWayprintRoute(streams.map { it.asSource().buffered() }) }
+        val route = buildCombinedWayprintRoute(
+            listOf(riesaMeissenFixtureSource(), riesaMeissenFixtureSource())
+        )
 
         assertEquals(2, route.tracks.size)
         assertEquals(2 * 26.15576342355938, route.totalDistanceKm, 1e-9)
@@ -33,11 +27,5 @@ class WayprintRouteTest {
             route.tracks[0].color != route.tracks[1].color,
             "each track must get its own dayPalette color"
         )
-    }
-
-    private fun <T : AutoCloseable, R> List<T>.use(block: (List<T>) -> R): R = try {
-        block(this)
-    } finally {
-        forEach { it.close() }
     }
 }

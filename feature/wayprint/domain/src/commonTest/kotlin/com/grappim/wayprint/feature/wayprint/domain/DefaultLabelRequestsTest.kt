@@ -24,7 +24,7 @@ class DefaultLabelRequestsTest {
     }
 
     @Test
-    fun `formats a negative distance, rounding the magnitude half-up away from zero`() {
+    fun `formats a negative distance rounding the magnitude half-up away from zero`() {
         assertEquals("-2.4 km", distanceLabelText(-2.35))
         assertEquals("-2.5 km", distanceLabelText(-2.45))
     }

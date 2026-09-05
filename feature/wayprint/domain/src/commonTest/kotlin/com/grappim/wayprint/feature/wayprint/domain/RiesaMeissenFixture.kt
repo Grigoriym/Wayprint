@@ -1,4 +1,16 @@
-<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+package com.grappim.wayprint.feature.wayprint.domain
+
+import kotlinx.io.Buffer
+import kotlinx.io.Source
+import kotlinx.io.writeString
+
+/**
+ * The `04 Riesa - Meissen.gpx` fixture used by [StoryPresetTest], [WayprintLayoutTest], and
+ * [WayprintRouteTest], inlined as a string constant rather than loaded via classpath resource
+ * lookup (`javaClass.getResourceAsStream`), which has no Kotlin/Native equivalent (see
+ * docs/revisit.md).
+ */
+private const val RIESA_MEISSEN_GPX = """<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
 <gpx version="1.1" creator="OsmAndRouterV2" xmlns="http://www.topografix.com/GPX/1/1" xmlns:osmand="https://osmand.net/docs/technical/osmand-file-formats/osmand-gpx" xmlns:gpxtpx="https://www8.garmin.com/xmlschemas/TrackPointExtensionv1.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 https://www.topografix.com/GPX/1/1/gpx.xsd">
   <metadata>
     <name>04 Riesa - Meissen</name>
@@ -1855,4 +1867,6 @@
       </trkpt>
     </trkseg>
   </trk>
-</gpx>
+</gpx>"""
+
+fun riesaMeissenFixtureSource(): Source = Buffer().apply { writeString(RIESA_MEISSEN_GPX) }

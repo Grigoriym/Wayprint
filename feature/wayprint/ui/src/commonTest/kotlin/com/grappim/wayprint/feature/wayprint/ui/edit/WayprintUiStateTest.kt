@@ -117,7 +117,7 @@ class WayprintUiStateTest {
     }
 
     @Test
-    fun `labelRemoved drops the label, pushes the pre-remove snapshot, and clears selection`() {
+    fun `labelRemoved drops the label pushes the pre-remove snapshot and clears selection`() {
         val state = WayprintUiState(layout = layout, selectedLabelId = "start").labelRemoved("start")
 
         assertEquals(emptyList(), state.layout?.labels)

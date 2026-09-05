@@ -1,7 +1,5 @@
 package com.grappim.wayprint.feature.wayprint.domain
 
-import kotlinx.io.asSource
-import kotlinx.io.buffered
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -11,10 +9,7 @@ class WayprintLayoutTest {
 
     @Test
     fun `pipeline places exactly 3 non-overlapping labels within the canvas`() {
-        val fixture =
-            requireNotNull(object {}.javaClass.getResourceAsStream("/fixtures/04 Riesa - Meissen.gpx"))
-
-        val layout = fixture.use { buildWayprintLayout(it.asSource().buffered()) }
+        val layout = buildWayprintLayout(riesaMeissenFixtureSource())
 
         assertEquals(3, layout.labels.size)
 
@@ -44,17 +39,10 @@ class WayprintLayoutTest {
     }
 
     @Test
-    fun `combined pipeline places exactly the 2 default Start-Finish labels, no distance label`() {
-        val fixtures = listOf(
-            requireNotNull(object {}.javaClass.getResourceAsStream("/fixtures/04 Riesa - Meissen.gpx")),
-            requireNotNull(object {}.javaClass.getResourceAsStream("/fixtures/04 Riesa - Meissen.gpx"))
+    fun `combined pipeline places exactly the 2 default Start-Finish labels no distance label`() {
+        val layout = buildCombinedWayprintLayout(
+            listOf(riesaMeissenFixtureSource(), riesaMeissenFixtureSource())
         )
-
-        val layout = try {
-            buildCombinedWayprintLayout(fixtures.map { it.asSource().buffered() })
-        } finally {
-            fixtures.forEach { it.close() }
-        }
 
         assertEquals(2, layout.tracks.size)
         assertEquals(2, layout.labels.size)

@@ -13,9 +13,3 @@ stays reviewable. Not chat — this is the persistent record.
   real wording, once there's a real window to look at while choosing it. M16.1 adds a third
   platform (iOS) where "gallery" is doubly wrong (Photos, not a gallery) — same fix, same
   deferral point.
-
-- 2026-09-05: worth checking whether `feature:wayprint:domain`/`feature:wayprint:ui`/
-  `composeApp`'s `commonTest` files have the same iOS `commonTest`-compile gap that `core:gpx`
-  and `core:storage` both had (fixed in commits `5e5732b` and the one directly following it) —
-  M16's own Verify lines only ever ran `compileKotlinIosXxx` (main sources), never the
-  `commonTest` compile for iOS, so nothing has actually confirmed the other modules are clean.
