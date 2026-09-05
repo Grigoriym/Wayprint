@@ -22,3 +22,7 @@ ktlint = disabled
 
 [**/testing/**]
 ktlint = disabled
+
+[**/main.ios.kt]
+ktlint_standard_filename=disabled
+ktlint_standard_function-naming=disabled

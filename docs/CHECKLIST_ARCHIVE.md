@@ -2189,3 +2189,95 @@ target half-wired and everything red, since each step still needs its own passin
   isolated Android emulator) interferes with their own work, so this and any future Desktop-target
   step should stick to `./gradlew build`/tests plus a single non-interactive screenshot, not a
   multi-step manual click-through.
+
+## M16 — Add an iOS KMP target
+
+Scoped 2026-09-04 alongside M15, but **don't start this until M15 is fully landed and archived**.
+Reusing M15's `expect`/`actual` interfaces (proven by two real implementations, Android and JVM)
+for a third platform is a much smaller, much less speculative step than designing those
+interfaces for three platforms in one shot — this is the whole reason M15/M16 are two milestones
+and not one.
+
+**The hard limit that shapes every step here: this dev machine is Linux.** Kotlin/Native can
+compile `iosArm64`/`iosSimulatorArm64` klibs on Linux with no Mac — that much is verifiable in
+this environment. Producing or running an actual `.app`, an Xcode build, or anything on a
+simulator/device requires a Mac with Xcode, which isn't available here. Every step's Verify line
+below is capped accordingly, and says so explicitly — **"compiles" is not "works."** Don't let a
+future session (or the user) mistake a green M16 checkbox for "the iOS app has been run."
+
+Reference precedent: `../TaigaMobileNova/iosApp` — a real Xcode project (`iosApp.xcodeproj`,
+`iOSApp.swift`, `ContentView.swift`, `Info.plist`) consuming `composeApp`'s iOS framework export.
+
+Gotcha carried forward from M16.1 for any later step touching `commonMain` coroutine code:
+`Dispatchers.IO`'s member is `internal` on Kotlin/Native (unlike JVM/Android, where it's public) —
+it only resolves via a same-named top-level extension (`kotlinx.coroutines.IO`) that must be
+imported explicitly alongside `Dispatchers` wherever `Dispatchers.IO` is used in `commonMain`
+(kotlinx.coroutines#3923; `TaigaMobileNova` already carries this same workaround). Forgetting the
+import doesn't fail on Android/JVM — only iOS compilation catches it.
+
+- [x] **M16.1** — Build-logic: add `iosArm64()`/`iosSimulatorArm64()` to `configureKmp()`
+  (`KmpConfiguration.kt`), mirroring `TaigaMobileNova`'s same two lines. Add each M15 `expect`
+  interface's iOS `actual` (`PlatformFileHandle` → `NSURL`, file read via `NSFileManager`/`NSData`,
+  the picker launcher via a wrapped `UIDocumentPickerViewController`, image export via
+  `UIActivityViewController`/`PHPhotoLibrary`).
+  **Verify (capped — no Mac in this environment):** `./gradlew :core:gpx:compileIosArm64MainKotlinMetadata`
+  (and the equivalent for every other module up through `composeApp`) succeeds on this machine.
+  That is the full extent of what's verifiable here — the iOS actuals are **unverified beyond
+  compiling** until run on a real Mac + simulator/device.
+  Note: the checklist's guessed Verify task name doesn't exist — these are real native targets,
+  not a metadata-only one, so the actual tasks are `compileKotlinIosArm64`/
+  `compileKotlinIosSimulatorArm64` (root-level `./gradlew compileKotlinIosArm64
+  compileKotlinIosSimulatorArm64` builds every module in one pass). All iOS actuals were written
+  against confirmed real-world Kotlin/Native code (fetched from `vinceglb/FileKit` and other
+  published KMP sources via `gh`/`curl`, not guessed) since none of this could be compiler-checked
+  against Apple's actual headers here: `PlatformFileHandle`/`ImageExporter.share` read/write bytes
+  via kotlinx-io (`SystemFileSystem`/`Path`, already a project dependency) rather than raw
+  `NSData` Foundation interop, whose exact Kotlin/Native binding names (e.g. `writeToFile`,
+  `dataWithContentsOfURL`) turned out not to exist as such and had to be discovered by trial
+  compilation. `ImageExporter.saveToGallery` does use raw `NSData`/`UIImage`/`PHPhotoLibrary`
+  interop (confirmed against a real published `ImageExporter.ios.kt`), since kotlinx-io has no
+  photo-library equivalent. Getting a clean compile also required two unrelated fixes the Verify
+  line's scope pulled in: `core:gpx`'s `DayPalette.kt` used `String.format` (JVM-only, no
+  Kotlin/Native equivalent) for hex color formatting, replaced with manual `toString(16)` padding
+  (same test, `DayPaletteTest`, still passes); and `WayprintViewModel.kt`/`RecentsViewModel.kt`
+  needed an explicit `import kotlinx.coroutines.IO` alongside `Dispatchers` — `Dispatchers.IO`'s
+  member is `internal` on Kotlin/Native (kotlinx.coroutines#3923), and only resolves via a
+  same-named top-level extension that has to be imported explicitly; `TaigaMobileNova` already
+  carries this same workaround. Full `detekt`/`ktlintCheck`/`testFdroidDebugUnitTest`/`jvmTest`
+  all still pass. Still fully unverified beyond compiling, per this step's cap — GPX content-type
+  filtering in the picker (`UTType.typeWithFilenameExtension("gpx")`), security-scoped resource
+  access, and the photo-library/share-sheet flows have never run on an actual device or simulator.
+
+- [x] **M16.2** — Add the `iosApp` Xcode project scaffold at the repo root, mirroring
+  `TaigaMobileNova/iosApp`'s structure, plus `composeApp`'s iOS framework export config
+  (`binaries.framework { ... }` in `composeApp/build.gradle.kts`, per Taiga's own).
+  **Verify (capped — no Mac in this environment):** `./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64`
+  succeeds on this machine. Actually opening `iosApp.xcodeproj`, building, and running on a
+  simulator/device is **out of reach here** — flag this step done-but-unverified-end-to-end in
+  its `Note:`, and ask the user to confirm on their own Mac before treating M16 as trustworthy.
+  Note: the checklist's own guessed Verify command doesn't actually run here — Kotlin Gradle
+  Plugin unconditionally disables Apple framework/binary **link** tasks (as distinct from the
+  klib-producing `compileKotlinIosXxx` tasks M16.1 already verifies) on a non-macOS host; the
+  task reports SKIPPED ("Task is enabled" is false) even with
+  `-Pkotlin.native.enableKlibsCrossCompilation=true` forced on, with no known override. The
+  achievable substitute, run instead: `./gradlew :composeApp:compileKotlinIosArm64
+  :composeApp:compileKotlinIosSimulatorArm64` succeeds with the new `binaries.framework { baseName
+  = "WayprintIos"; isStatic = true }` block added — confirming the framework export config is at
+  least valid and doesn't break compilation, the same cap M16.1 already documented. Full
+  `detekt`/`ktlintCheck`/`jvmTest`/`testFdroidDebugUnitTest` all still pass; `.editorconfig` needed
+  a `[**/main.ios.kt]` override (`ktlint_standard_filename`/`ktlint_standard_function-naming`
+  disabled) for the required PascalCase `MainViewController()` entry point, copied verbatim from
+  `TaigaMobileNova/.editorconfig`'s existing precedent for the identically-named file. The
+  `iosApp/` scaffold (`iosApp.xcodeproj/project.pbxproj`, `iOSApp.swift`, `ContentView.swift`,
+  `Info.plist`, `Configuration/Config.xcconfig`, `Assets.xcassets` incl. `wayprint_logo.png` as the
+  1024×1024 App Icon) mirrors Taiga's structure with fresh UUIDs and Wayprint's own bundle id
+  (`com.grappim.wayprint.Wayprint$(TEAM_ID)`, `app-pkg` + product-name pattern, matching Taiga's
+  analogous suffix). `composeApp`'s new `main.ios.kt` (`MainViewController()` via
+  `ComposeUIViewController { startKoin<KoinApp> { }; WayprintAppContent() }`) omits Taiga's
+  `NSLogLogger`/`setUnhandledExceptionHook`/`OnFocusBehavior` calls — Wayprint has no logger module
+  and no established focus-behavior need yet, unlike Taiga. `xcuserdata`/`xcscheme` files (Taiga
+  commits these, Xcode-generated on first open) were **not** fabricated — they're machine-specific
+  state Xcode regenerates itself; only the actual project structure was scaffolded. This step is
+  unverified end-to-end (no Mac here) beyond what's stated above — ask the user to open
+  `iosApp.xcodeproj` on a real Mac, confirm it builds and runs on a simulator, before trusting M16
+  as a whole.
