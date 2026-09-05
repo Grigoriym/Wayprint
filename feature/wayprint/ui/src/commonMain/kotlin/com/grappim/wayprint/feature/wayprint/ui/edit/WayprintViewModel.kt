@@ -56,6 +56,9 @@ class WayprintViewModel(
     /** Whether this platform has a real share surface — the screen hides the Share action when false. */
     val supportsShare: Boolean = imageExporter.supportsShare
 
+    /** Snackbar text the screen shows on [saveConfirmations] — worded per platform by [imageExporter]. */
+    val saveConfirmationMessage: String = imageExporter.saveConfirmationMessage
+
     init {
         loadTrack()
     }

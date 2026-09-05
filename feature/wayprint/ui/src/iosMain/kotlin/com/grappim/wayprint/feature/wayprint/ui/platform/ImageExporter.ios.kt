@@ -37,6 +37,8 @@ actual class ImageExporter {
 
     actual val supportsShare: Boolean = true
 
+    actual val saveConfirmationMessage: String = "Saved to Photos"
+
     actual suspend fun saveToGallery(image: ImageBitmap): Boolean {
         val uiImage = image.toUIImage() ?: return false
         return suspendCancellableCoroutine { continuation ->

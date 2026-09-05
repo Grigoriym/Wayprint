@@ -82,7 +82,7 @@ fun WayprintScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(viewModel) {
-        viewModel.saveConfirmations.collect { snackbarHostState.showSnackbar("Saved to gallery") }
+        viewModel.saveConfirmations.collect { snackbarHostState.showSnackbar(viewModel.saveConfirmationMessage) }
     }
 
     val layout = uiState.layout

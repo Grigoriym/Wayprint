@@ -21,4 +21,7 @@ expect class ImageExporter {
 
     /** Whether this platform has a real share surface — gates whether the UI offers Share at all. */
     val supportsShare: Boolean
+
+    /** Snackbar text for a completed [saveToGallery], worded for what that platform actually did. */
+    val saveConfirmationMessage: String
 }

@@ -14,6 +14,8 @@ actual class ImageExporter(private val context: Context) {
 
     actual val supportsShare: Boolean = true
 
+    actual val saveConfirmationMessage: String = "Saved to gallery"
+
     actual suspend fun saveToGallery(image: ImageBitmap): Boolean {
         val uri = MediaStore.Images.Media.insertImage(
             context.contentResolver,

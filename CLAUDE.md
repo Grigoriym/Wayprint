@@ -59,6 +59,15 @@ F-Droid + Play flavors, shared `build-logic` convention plugins, fastlane.
   scaffold time whether to extract shared convention plugins into `agentic-grappim` or start
   fresh and copy what's needed.
 
+### Gradle task names
+
+Every module here is an Android-only KMP target (`configureKmp()`/`androidTarget()`), not a
+plain `com.android.library` module — so standard AGP task names don't exist: no
+`compileDebugKotlinAndroid`, no `testDebugUnitTest`, and plain `test` is ambiguous. The real
+names follow KMP's per-target convention instead: `compileAndroidMain`, `testAndroidHostTest`,
+`jvmTest`, `compileKotlinIosArm64`, etc. Don't guess — list them first:
+`./gradlew :<module>:tasks --all | grep -iE '^(compile|test).*<target>'`.
+
 ## Growth roadmap (v2+, not MVP)
 
 MVP (M0–M11, see `docs/CHECKLIST_ARCHIVE.md`) is complete, including the editable canvas
