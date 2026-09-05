@@ -1,7 +1,5 @@
 package com.grappim.wayprint.core.gpx
 
-import kotlinx.io.asSource
-import kotlinx.io.buffered
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -36,9 +34,7 @@ class RdpTest {
 
     @Test
     fun `simplifies the fixture matching the Python reference point count`() {
-        val fixture =
-            requireNotNull(object {}.javaClass.getResourceAsStream("/fixtures/04 Riesa - Meissen.gpx"))
-        val points = fixture.use { parseTrack(it.asSource().buffered()) }
+        val points = parseTrack(riesaMeissenFixtureSource())
 
         val simplified = rdp(points, REFERENCE_EPSILON)
 
