@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
@@ -58,6 +60,7 @@ fun RecentsScreen(
     val uiState by viewModel.uiState.collectAsState()
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
     var pendingTemplatePick by remember { mutableStateOf<TemplatePickTarget?>(null) }
+    var isReordering by remember { mutableStateOf(false) }
 
     val pickGpx = rememberGpxPickerLauncher { handle -> pendingTemplatePick = TemplatePickTarget.Import(handle) }
 
@@ -83,6 +86,19 @@ fun RecentsScreen(
                 pendingTemplatePick = null
             },
             onDismiss = { pendingTemplatePick = null }
+        )
+    }
+
+    if (isReordering) {
+        ReorderTracksDialog(
+            tracks = uiState.selectedIds.mapNotNull { id -> uiState.tracks.find { it.id == id } },
+            onMoveUp = viewModel::moveSelectedUp,
+            onMoveDown = viewModel::moveSelectedDown,
+            onConfirm = {
+                isReordering = false
+                pendingTemplatePick = TemplatePickTarget.Combine
+            },
+            onDismiss = { isReordering = false }
         )
     }
 
@@ -121,7 +137,7 @@ fun RecentsScreen(
                     },
                     actions = {
                         IconButton(
-                            onClick = { pendingTemplatePick = TemplatePickTarget.Combine },
+                            onClick = { isReordering = true },
                             enabled = uiState.selectedIds.size >= 2
                         ) {
                             Icon(Icons.Filled.Check, contentDescription = "Combine")
@@ -225,6 +241,60 @@ private fun TemplatePickDialog(
             }
         },
         confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+/**
+ * Lets the user fix up the combine order before confirming: [tracks] arrives in
+ * [RecentsUiState.selectedIds] order, which is just UI tap order and has no relation to a
+ * multi-day trip's real chronology — left uncorrected, the combined image's global Start/Finish
+ * labels (anchored to the first/last track in that order) can land in the middle of the route
+ * instead of its actual ends. This dialog is where the user reorders before [onConfirm] proceeds
+ * to the template picker and the actual combine.
+ */
+@Composable
+private fun ReorderTracksDialog(
+    tracks: List<RecentTrackUiItem>,
+    onMoveUp: (String) -> Unit,
+    onMoveDown: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AlertDialog(
+        modifier = modifier,
+        onDismissRequest = onDismiss,
+        title = { Text("Order the tracks") },
+        text = {
+            Column {
+                Text("This becomes the route's Start-to-Finish order.")
+                tracks.forEachIndexed { index, track ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "${index + 1}. ${track.displayName}",
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        IconButton(onClick = { onMoveUp(track.id) }, enabled = index > 0) {
+                            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move up")
+                        }
+                        IconButton(onClick = { onMoveDown(track.id) }, enabled = index < tracks.lastIndex) {
+                            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move down")
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("Next") }
+        },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }

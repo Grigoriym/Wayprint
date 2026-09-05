@@ -18,7 +18,13 @@ data class RecentTrackUiItem(
     val mergedTrackNames: List<String> = emptyList()
 )
 
-/** [selectedIds] is ordered by selection, not display order — `RecentsViewModel.combineSelected` combines in that order. */
+/**
+ * [selectedIds] is ordered by selection, not display order — `RecentsViewModel.combineSelected`
+ * combines in that order. Selection order alone is an unreliable proxy for a multi-day trip's
+ * real chronology (the Recents list itself sorts newest-imported-first), so [moveSelected] lets
+ * the user fix that order up before combining, via a reorder step between selecting tracks and
+ * confirming the combine.
+ */
 data class RecentsUiState(
     val tracks: List<RecentTrackUiItem> = emptyList(),
     val isLoading: Boolean = false,
@@ -27,4 +33,17 @@ data class RecentsUiState(
 ) {
     val isEmpty: Boolean get() = !isLoading && error == null && tracks.isEmpty()
     val isSelectionMode: Boolean get() = selectedIds.isNotEmpty()
+
+    /** Moves [id] by [offset] positions within [selectedIds]; clamped to the list's bounds, a no-op if [id] isn't selected. */
+    fun moveSelected(id: String, offset: Int): RecentsUiState {
+        val index = selectedIds.indexOf(id)
+        if (index == -1) return this
+        val newIndex = (index + offset).coerceIn(selectedIds.indices)
+        if (newIndex == index) return this
+        val reordered = selectedIds.toMutableList().apply {
+            removeAt(index)
+            add(newIndex, id)
+        }
+        return copy(selectedIds = reordered)
+    }
 }

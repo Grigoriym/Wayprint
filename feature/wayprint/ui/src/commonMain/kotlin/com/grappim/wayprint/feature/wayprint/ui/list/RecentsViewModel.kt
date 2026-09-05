@@ -115,6 +115,16 @@ class RecentsViewModel(private val tracksStorage: TracksStorage) : ViewModel() {
         _uiState.update { it.copy(selectedIds = emptyList()) }
     }
 
+    /** Moves [id] one place earlier in the pending combine order — see [RecentsUiState.moveSelected]. */
+    fun moveSelectedUp(id: String) {
+        _uiState.update { it.moveSelected(id, offset = -1) }
+    }
+
+    /** Moves [id] one place later in the pending combine order — see [RecentsUiState.moveSelected]. */
+    fun moveSelectedDown(id: String) {
+        _uiState.update { it.moveSelected(id, offset = 1) }
+    }
+
     /**
      * Builds a new combined track (M11) under [storyPresetIndex] from the currently selected
      * tracks' GPX bytes, in selection order, and emits its id via [imported] like a fresh import.
