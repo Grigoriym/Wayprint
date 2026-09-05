@@ -14,12 +14,8 @@ stays reviewable. Not chat — this is the persistent record.
   platform (iOS) where "gallery" is doubly wrong (Photos, not a gallery) — same fix, same
   deferral point.
 
-- 2026-09-05 (same discovery, same day): `:core:storage:compileTestKotlinIosArm64`/
-  `compileTestKotlinIosSimulatorArm64` also fail on `master` before any change this session
-  (verified via `git stash`) — `core/storage/src/commonTest/kotlin/.../TracksStorageTest.kt` uses
-  `String.toByteArray()` (`kotlin.text`, JVM/Android-only, no Kotlin/Native overload) throughout.
-  Same root cause and same fix shape as the `core:gpx` entry directly above — every `commonTest`
-  file across every KMP module apparently was never actually compile-checked against the iOS test
-  source sets, only `compileKotlinIosXxx` (main) per M16's own Verify lines. Worth checking whether
-  `feature:wayprint:domain`/`feature:wayprint:ui`/`composeApp`'s `commonTest` files have the same
-  gap before assuming it's confined to these two.
+- 2026-09-05: worth checking whether `feature:wayprint:domain`/`feature:wayprint:ui`/
+  `composeApp`'s `commonTest` files have the same iOS `commonTest`-compile gap that `core:gpx`
+  and `core:storage` both had (fixed in commits `5e5732b` and the one directly following it) —
+  M16's own Verify lines only ever ran `compileKotlinIosXxx` (main sources), never the
+  `commonTest` compile for iOS, so nothing has actually confirmed the other modules are clean.

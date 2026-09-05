@@ -65,7 +65,7 @@ class TracksStorageTest {
 
     @Test
     fun `save then load round-trips the gpx bytes and metadata exactly`() {
-        val gpxBytes = "<gpx><trk/></gpx>".toByteArray()
+        val gpxBytes = "<gpx><trk/></gpx>".encodeToByteArray()
         val trackMetadata = metadata(colorSchemeIndex = 2, displayName = "Elbe route", distanceKm = 12.5)
 
         storage.save("track-1", gpxBytes, trackMetadata)
@@ -77,7 +77,7 @@ class TracksStorageTest {
 
     @Test
     fun `saveCombined then loadCombined round-trips every gpx blob in order and metadata exactly`() {
-        val gpxBlobs = listOf("<gpx><trk>a</trk></gpx>".toByteArray(), "<gpx><trk>b</trk></gpx>".toByteArray())
+        val gpxBlobs = listOf("<gpx><trk>a</trk></gpx>".encodeToByteArray(), "<gpx><trk>b</trk></gpx>".encodeToByteArray())
         val trackMetadata = combinedMetadata(
             displayName = "Two days",
             distanceKm = 30.0,
@@ -94,8 +94,8 @@ class TracksStorageTest {
 
     @Test
     fun `loadCombined returns null for a single track id and load returns null for a combined track id`() {
-        storage.save("single", "solo".toByteArray(), metadata())
-        storage.saveCombined("combo", listOf("a".toByteArray(), "b".toByteArray()), combinedMetadata())
+        storage.save("single", "solo".encodeToByteArray(), metadata())
+        storage.saveCombined("combo", listOf("a".encodeToByteArray(), "b".encodeToByteArray()), combinedMetadata())
 
         assertNull(storage.loadCombined("single"))
         assertNull(storage.load("combo"))
@@ -103,8 +103,8 @@ class TracksStorageTest {
 
     @Test
     fun `list returns every saved track's summary newest first`() {
-        storage.save("older", "a".toByteArray(), metadata(importedAtEpochMillis = 1L, displayName = "Older"))
-        storage.save("newer", "b".toByteArray(), metadata(importedAtEpochMillis = 2L, displayName = "Newer"))
+        storage.save("older", "a".encodeToByteArray(), metadata(importedAtEpochMillis = 1L, displayName = "Older"))
+        storage.save("newer", "b".encodeToByteArray(), metadata(importedAtEpochMillis = 2L, displayName = "Newer"))
 
         val summaries = storage.list()
 
@@ -114,10 +114,10 @@ class TracksStorageTest {
 
     @Test
     fun `list surfaces single and combined tracks together newest first`() {
-        storage.save("single", "a".toByteArray(), metadata(importedAtEpochMillis = 1L, displayName = "Single"))
+        storage.save("single", "a".encodeToByteArray(), metadata(importedAtEpochMillis = 1L, displayName = "Single"))
         storage.saveCombined(
             "combined",
-            listOf("a".toByteArray(), "b".toByteArray()),
+            listOf("a".encodeToByteArray(), "b".encodeToByteArray()),
             combinedMetadata(importedAtEpochMillis = 2L, displayName = "Combined")
         )
 
@@ -130,13 +130,13 @@ class TracksStorageTest {
 
     @Test
     fun `delete removes only the targeted track`() {
-        storage.save("keep", "keep".toByteArray(), metadata())
-        storage.save("gone", "gone".toByteArray(), metadata())
+        storage.save("keep", "keep".encodeToByteArray(), metadata())
+        storage.save("gone", "gone".encodeToByteArray(), metadata())
 
         storage.delete("gone")
 
         assertNull(storage.load("gone"))
-        assertTrue("keep".toByteArray().contentEquals(requireNotNull(storage.load("keep")).gpxBytes))
+        assertTrue("keep".encodeToByteArray().contentEquals(requireNotNull(storage.load("keep")).gpxBytes))
     }
 
     @Test
@@ -148,7 +148,7 @@ class TracksStorageTest {
     fun `save then load round-trips a non-default storyPresetIndex`() {
         val trackMetadata = metadata(storyPresetIndex = 1)
 
-        storage.save("track-1", "gpx".toByteArray(), trackMetadata)
+        storage.save("track-1", "gpx".encodeToByteArray(), trackMetadata)
 
         assertEquals(1, requireNotNull(storage.load("track-1")).metadata.storyPresetIndex)
     }
